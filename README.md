@@ -42,7 +42,7 @@ Truy cập **http://localhost:3000** — Đăng ký tài khoản và bắt đầ
 > API_PORT=8001
 > DB_PORT=5434
 > ```
-> Rồi chạy lại `docker-compose up --build`, truy cập `http://localhost:3001`
+> Rồi chạy lại `docker-compose up --build`, truy cập `http://localhost:{APP_PORT}`
 
 
 ## 💻 Chạy Development (Local)
