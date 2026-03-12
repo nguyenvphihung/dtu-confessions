@@ -36,6 +36,14 @@ docker-compose up --build
 
 Truy cập **http://localhost:3000** — Đăng ký tài khoản và bắt đầu sử dụng!
 
+> **Bị trùng port?** Tạo file `.env` ở thư mục gốc (copy từ `.env.example`), đổi port:
+> ```ini
+> APP_PORT=3001
+> API_PORT=8001
+> DB_PORT=5434
+> ```
+> Rồi chạy lại `docker-compose up --build`, truy cập `http://localhost:3001`
+
 
 ## 💻 Chạy Development (Local)
 

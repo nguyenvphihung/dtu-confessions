@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: confessions_db
     ports:
-      - "5433:5432"
+      - "${DB_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,9 +23,9 @@ services:
       DATABASE_URL: postgresql://postgres:admin123@db:5432/confessions_db
       SECRET_KEY: confession-dtu-docker-secret-key-2026
       ACCESS_TOKEN_EXPIRE_MINUTES: "60"
-      CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
+      CORS_ORIGINS: "http://localhost:${APP_PORT:-3000},http://127.0.0.1:${APP_PORT:-3000}"
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     volumes:
       - uploads_data:/app/uploads
     depends_on:
@@ -36,7 +36,7 @@ services:
     build: ./frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "${APP_PORT:-3000}:80"
     depends_on:
       - backend
 
