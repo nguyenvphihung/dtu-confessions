@@ -15,6 +15,8 @@ COPY . .
 # Tạo thư mục uploads
 RUN mkdir -p /app/uploads
 
-EXPOSE 8000
+ARG API_PORT=8000
+ENV API_PORT=${API_PORT}
+EXPOSE ${API_PORT}
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${API_PORT}"]
