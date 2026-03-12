@@ -8,18 +8,6 @@ Nền tảng confession ẩn danh dành cho sinh viên Đại học Duy Tân (DT
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
-## ✨ Tính năng
-
-- 📝 Đăng confession ẩn danh hoặc công khai
-- 💬 Bình luận và trả lời bình luận
-- ❤️ Like bài viết và bình luận
-- 📸 Upload ảnh và audio kèm bài viết
-- 🔍 Tìm kiếm confession
-- 📊 Thống kê cộng đồng, bài viết nổi bật, thành viên tích cực
-- 🛡️ Admin Dashboard: quản lý người dùng, bài viết, bình luận
-- 🌗 Giao diện Dark/Light mode
-- 🎨 Animation mượt mà với Motion (Framer Motion)
-
 ## 🛠️ Tech Stack
 
 | Layer | Công nghệ |
@@ -30,9 +18,9 @@ Nền tảng confession ẩn danh dành cho sinh viên Đại học Duy Tân (DT
 | **Auth** | JWT (python-jose + bcrypt) |
 | **Deploy** | Docker + Nginx |
 
-## 🚀 Chạy với Docker (Khuyên dùng)
+## 🚀 Chạy với Docker
 
-Chỉ cần cài [Docker Desktop](https://www.docker.com/products/docker-desktop/), không cần cài Python, Node hay PostgreSQL.
+Cài đặt [Docker Desktop](https://www.docker.com/products/docker-desktop/),.
 
 ```bash
 # 1. Clone project
@@ -48,7 +36,6 @@ docker-compose up --build
 
 Truy cập **http://localhost:3000** — Đăng ký tài khoản và bắt đầu sử dụng!
 
-> **Lưu ý:** Lần đầu build sẽ mất 2-5 phút. Các lần sau chạy `docker-compose up` sẽ nhanh hơn.
 
 ## 💻 Chạy Development (Local)
 
@@ -124,11 +111,3 @@ dtu-confessions/
         ├── context/            # Auth & Theme context
         └── pages/              # Page components
 ```
-
-## 📄 License
-
-MIT License — Sử dụng tự do cho mục đích học tập.
-
----
-
-**Made with ❤️ by DTU Students**
