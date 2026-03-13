@@ -85,6 +85,38 @@ npm run dev
 
 Frontend chạy tại **http://localhost:5173**
 
+## 🌱 Seed Dữ liệu Mẫu (Tùy chọn)
+
+Dự án cung cấp bộ công cụ để tự động tạo dữ liệu mẫu với hiệu suất cao (users, posts, comments, interactions...) và gán ảnh ngẫu nhiên cho bài viết nhằm mục đích test.
+
+**1. Nếu bạn chạy bằng Docker:**
+```bash
+# Truy cập vào container backend
+docker exec -it <tên_container_backend> /bin/bash
+# Ví dụ: docker exec -it dtuconfessions-backend-1 /bin/bash
+
+# Chạy script tạo dữ liệu (mặc định sẽ tạo lượng lớn data, có thể mất vài chục giây)
+python seed_fake_data.py
+
+# (Tùy chọn) Chạy lệnh với số lượng nhỏ hơn để test nhanh:
+# python seed_fake_data.py --users 500 --posts 2000 --comments 5000 --post_likes 3000 --comment_likes 2000
+
+# Chạy script gán URL ảnh ngẫu nhiên (từ picsum.photos) cho khoảng 70% bài viết chưa có ảnh
+python seed_fake_images.py
+```
+
+**2. Nếu bạn chạy Development (Local):**
+Đảm bảo bạn đang ở trong thư mục `backend` và đã kích hoạt môi trường ảo (`.venv`):
+```bash
+cd backend
+
+# Chạy tạo dữ liệu text
+python seed_fake_data.py
+
+# Chạy tạo dữ liệu ảnh 
+python seed_fake_images.py
+```
+
 ## 📁 Cấu trúc dự án
 
 ```
