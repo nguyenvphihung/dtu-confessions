@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from database import get_db
@@ -51,8 +51,8 @@ def get_all_users(
 
 @router.put("/users/{user_id}/role")
 def update_user_role(
-    user_id: int, 
-    role: str = Query(..., description="'admin' hoặc 'user'"),
+    user_id: int,
+    role: str = Body(..., embed=True, description="'admin' hoặc 'user'"),
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_admin_user)
 ):

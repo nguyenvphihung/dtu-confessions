@@ -4,6 +4,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import api from '../api/axios';
+import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 const timeAgo = (dateString) => {
     const now = new Date();
@@ -27,14 +29,21 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
     const isOwner = user?.id === comment.user_id;
 
     const handleDelete = async () => {
-        if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này không?')) return;
+        const res = await Swal.fire({
+            title: 'Bạn có chắc chắn muốn xóa bình luận này không?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Xóa',
+            cancelButtonText: 'Hủy',
+        });
+        if (!res.isConfirmed) return;
         setIsDeleting(true);
         try {
             await api.delete(`/comments/${comment.id}`);
             onReplySuccess();
         } catch (err) {
             console.error('Lỗi khi xóa bình luận:', err);
-            alert('Không thể xóa bình luận. Vui lòng thử lại sau.');
+            toast.error('Không thể xóa bình luận. Vui lòng thử lại sau.');
             setIsDeleting(false);
         }
     };

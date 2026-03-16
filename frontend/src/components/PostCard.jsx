@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { CommentSection } from './CommentSection';
 import api from '../api/axios';
+import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 const formatNumber = (n) => {
     if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
@@ -56,14 +58,21 @@ export function PostCard({ post, index = 0, onDelete }) {
     const isOwner = user?.id === post.author_id;
 
     const handleDeletePost = async () => {
-        if (!window.confirm('Bạn có chắc chắn muốn xóa confession này không?')) return;
+        const res = await Swal.fire({
+            title: 'Bạn có chắc chắn muốn xóa confession này không?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Xóa',
+            cancelButtonText: 'Hủy',
+        });
+        if (!res.isConfirmed) return;
         setIsDeleting(true);
         try {
             await api.delete(`/posts/${post.id}`);
             if (onDelete) onDelete(post.id);
         } catch (err) {
             console.error('Lỗi khi xóa bài:', err);
-            alert('Không thể xóa bài viết. Vui lòng thử lại sau.');
+            toast.error('Không thể xóa bài viết. Vui lòng thử lại sau.');
             setIsDeleting(false);
         }
     };

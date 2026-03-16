@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Search, Shield, ShieldOff, Trash2, UserCog, Ban, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
 import { getUsers, changeUserRole, toggleBanUser, adminDeletePost, adminDeleteComment } from '../api/admin';
 import { motion, AnimatePresence } from 'motion/react';
 import api from '../api/axios';
+import { toast } from 'react-toastify';
 
 const TABS = [
     { id: 'users', label: 'Người dùng', icon: UserCog },
@@ -123,25 +125,39 @@ function UsersTab({ isDark }) {
 
     const handleRoleChange = async (userId, currentRole) => {
         const newRole = currentRole === 'admin' ? 'user' : 'admin';
-        if (!window.confirm(`Đổi vai trò thành "${newRole}"?`)) return;
+        const res = await Swal.fire({
+            title: `Đổi vai trò thành "${newRole}"?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Đồng ý',
+            cancelButtonText: 'Hủy',
+        });
+        if (!res.isConfirmed) return;
         try {
             await changeUserRole(userId, newRole);
             fetchUsers(page * limit, search);
         } catch (err) {
             console.error('Lỗi đổi vai trò:', err);
-            alert('Không thể đổi vai trò. Vui lòng thử lại.');
+            toast.error('Không thể đổi vai trò. Vui lòng thử lại.');
         }
     };
 
     const handleBanToggle = async (userId, isBanned) => {
         const action = isBanned ? 'bỏ cấm' : 'cấm';
-        if (!window.confirm(`Bạn có chắc chắn muốn ${action} người dùng này?`)) return;
+        const res = await Swal.fire({
+            title: `Bạn có chắc chắn muốn ${action} người dùng này?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Đồng ý',
+            cancelButtonText: 'Hủy',
+        });
+        if (!res.isConfirmed) return;
         try {
             await toggleBanUser(userId, !isBanned);
             fetchUsers(page * limit, search);
         } catch (err) {
             console.error('Lỗi cấm/bỏ cấm:', err);
-            alert('Không thể thực hiện. Vui lòng thử lại.');
+            toast.error('Không thể thực hiện. Vui lòng thử lại.');
         }
     };
 
@@ -322,18 +338,32 @@ function PostsTab({ isDark }) {
     }, []);
 
     const handleDeletePost = async (postId) => {
-        if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này?')) return;
+        const res = await Swal.fire({
+            title: 'Bạn có chắc chắn muốn xóa bài viết này?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Xóa',
+            cancelButtonText: 'Hủy',
+        });
+        if (!res.isConfirmed) return;
         try {
             await adminDeletePost(postId);
             setPosts((prev) => prev.filter((p) => p.id !== postId));
         } catch (err) {
             console.error('Lỗi xóa bài viết:', err);
-            alert('Không thể xóa bài viết. Vui lòng thử lại.');
+            toast.error('Không thể xóa bài viết. Vui lòng thử lại.');
         }
     };
 
     const handleDeleteComment = async (commentId, postId) => {
-        if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này?')) return;
+        const res = await Swal.fire({
+            title: 'Bạn có chắc chắn muốn xóa bình luận này?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Xóa',
+            cancelButtonText: 'Hủy',
+        });
+        if (!res.isConfirmed) return;
         try {
             await adminDeleteComment(commentId);
             setPosts((prev) =>
@@ -346,7 +376,7 @@ function PostsTab({ isDark }) {
             fetchPosts();
         } catch (err) {
             console.error('Lỗi xóa bình luận:', err);
-            alert('Không thể xóa bình luận. Vui lòng thử lại.');
+            toast.error('Không thể xóa bình luận. Vui lòng thử lại.');
         }
     };
 
