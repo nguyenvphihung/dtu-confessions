@@ -2,18 +2,10 @@ import axios from 'axios';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || '/api',
+    withCredentials: true,
 });
-
-// Tự động gắn JWT token vào mỗi request (nếu chưa có)
+// Ensure cookies are sent; we no longer auto-inject Authorization from storage.
 api.interceptors.request.use((config) => {
-    if (!config.headers.Authorization) {
-        // Prefer token from localStorage (remembered), fallback to sessionStorage.
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-    }
-    // Nếu data là FormData → xóa Content-Type để browser tự set boundary
     if (config.data instanceof FormData) {
         delete config.headers['Content-Type'];
     }
@@ -24,12 +16,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (
-            error.response?.status === 401 &&
-            !error.config.url.includes('/auth/')
-        ) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+        if (error.response?.status === 401 && !error.config.url.includes('/auth/')) {
+            // If server rejects due to auth, redirect to login.
             window.location.href = '/login';
         }
         return Promise.reject(error);

@@ -4,34 +4,23 @@ import api from '../api/axios';
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(() => {
-        const savedLocal = localStorage.getItem('user');
-        const savedSession = sessionStorage.getItem('user');
-        const saved = savedLocal || savedSession;
-        return saved ? JSON.parse(saved) : null;
-    });
-
-    const [token, setToken] = useState(() => {
-        return localStorage.getItem('token') || sessionStorage.getItem('token');
-    });
-
-    const isAuthenticated = !!token;
+    const [user, setUser] = useState(null);
+    const isAuthenticated = !!user;
 
     const refreshUser = useCallback(async () => {
-        if (!token) return;
         try {
             const res = await api.get('/users/me');
-            localStorage.setItem('user', JSON.stringify(res.data));
             setUser(res.data);
         } catch (err) {
-            console.error('Refresh user error:', err);
+            // not authenticated or token expired
+            setUser(null);
         }
-    }, [token]);
+    }, []);
 
-    // Tự động refresh thông tin user khi mở app
+    // Tự động refresh thông tin user khi mở app (cookies auth)
     useEffect(() => {
-        if (token) refreshUser();
-    }, [token, refreshUser]);
+        refreshUser();
+    }, [refreshUser]);
 
     // `remember` controls whether token/user are persisted to localStorage (long-lived)
     // or to sessionStorage (cleared when browser/tab closes).
@@ -39,26 +28,11 @@ export function AuthProvider({ children }) {
         const res = await api.post('/auth/login', {
             student_id: studentId,
             password: password,
+            remember: remember,
         });
-        const { access_token } = res.data;
-        if (remember) {
-            localStorage.setItem('token', access_token);
-        } else {
-            sessionStorage.setItem('token', access_token);
-        }
-        setToken(access_token);
-
-        // Lấy thông tin user sau khi login
-        const userRes = await api.get('/users/me', {
-            headers: { Authorization: `Bearer ${access_token}` },
-        });
-        if (remember) {
-            localStorage.setItem('user', JSON.stringify(userRes.data));
-        } else {
-            sessionStorage.setItem('user', JSON.stringify(userRes.data));
-        }
-        setUser(userRes.data);
-        return userRes.data;
+        // Server sets HttpOnly cookies; response returns user object
+        setUser(res.data);
+        return res.data;
     };
 
     const register = async (data) => {
@@ -66,17 +40,17 @@ export function AuthProvider({ children }) {
         return res.data;
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('user');
-        setToken(null);
+    const logout = async () => {
+        try {
+            await api.post('/auth/logout');
+        } catch (e) {
+            // ignore
+        }
         setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, isAuthenticated, login, register, logout, refreshUser }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout, refreshUser }}>
             {children}
         </AuthContext.Provider>
     );

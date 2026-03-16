@@ -27,6 +27,7 @@ class Token(BaseModel):
 class LoginRequest(BaseModel):
     student_id: str
     password: str
+    remember: bool = False
 
 class PostMediaResponse(BaseModel):
     id: int
