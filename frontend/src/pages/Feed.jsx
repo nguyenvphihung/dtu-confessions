@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useFetchOnMount } from '../hooks/useFetchOnMount';
 import { useSearchParams } from 'react-router-dom';
 import { PenSquare } from 'lucide-react';
 import { PostCard } from '../components/PostCard';
@@ -33,13 +34,16 @@ export function Feed() {
         }
     }, [searchQuery]);
 
-    useEffect(() => {
+    // Use the shared hook to perform a fetch on mount. Depend on `searchQuery`
+    // (primitive) instead of the `fetchPosts` function reference to avoid
+    // re-running when unrelated parents re-render and re-create the callback.
+    useFetchOnMount(() => {
         setPage(0);
         setHasMore(true);
         setLoading(true);
         setPosts([]);
         fetchPosts(0, false);
-    }, [fetchPosts]);
+    }, [searchQuery]);
 
     const handleLoadMore = () => {
         const newPage = page + 1;

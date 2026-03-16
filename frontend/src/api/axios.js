@@ -7,7 +7,8 @@ const api = axios.create({
 // Tự động gắn JWT token vào mỗi request (nếu chưa có)
 api.interceptors.request.use((config) => {
     if (!config.headers.Authorization) {
-        const token = localStorage.getItem('token');
+        // Prefer token from localStorage (remembered), fallback to sessionStorage.
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }

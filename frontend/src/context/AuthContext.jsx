@@ -5,11 +5,15 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(() => {
-        const saved = localStorage.getItem('user');
+        const savedLocal = localStorage.getItem('user');
+        const savedSession = sessionStorage.getItem('user');
+        const saved = savedLocal || savedSession;
         return saved ? JSON.parse(saved) : null;
     });
 
-    const [token, setToken] = useState(() => localStorage.getItem('token'));
+    const [token, setToken] = useState(() => {
+        return localStorage.getItem('token') || sessionStorage.getItem('token');
+    });
 
     const isAuthenticated = !!token;
 
@@ -29,20 +33,30 @@ export function AuthProvider({ children }) {
         if (token) refreshUser();
     }, [token, refreshUser]);
 
-    const login = async (studentId, password) => {
+    // `remember` controls whether token/user are persisted to localStorage (long-lived)
+    // or to sessionStorage (cleared when browser/tab closes).
+    const login = async (studentId, password, remember = false) => {
         const res = await api.post('/auth/login', {
             student_id: studentId,
             password: password,
         });
         const { access_token } = res.data;
-        localStorage.setItem('token', access_token);
+        if (remember) {
+            localStorage.setItem('token', access_token);
+        } else {
+            sessionStorage.setItem('token', access_token);
+        }
         setToken(access_token);
 
         // Lấy thông tin user sau khi login
         const userRes = await api.get('/users/me', {
             headers: { Authorization: `Bearer ${access_token}` },
         });
-        localStorage.setItem('user', JSON.stringify(userRes.data));
+        if (remember) {
+            localStorage.setItem('user', JSON.stringify(userRes.data));
+        } else {
+            sessionStorage.setItem('user', JSON.stringify(userRes.data));
+        }
         setUser(userRes.data);
         return userRes.data;
     };
@@ -55,6 +69,8 @@ export function AuthProvider({ children }) {
     const logout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         setToken(null);
         setUser(null);
     };

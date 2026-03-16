@@ -14,13 +14,14 @@ export function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [remember, setRemember] = useState(true);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
-            await login(studentId, password);
+            await login(studentId, password, remember);
             navigate('/');
         } catch (err) {
             setError(err.response?.data?.detail || 'Đăng nhập thất bại');
@@ -141,6 +142,18 @@ export function Login() {
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <label className="inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={remember}
+                                onChange={(e) => setRemember(e.target.checked)}
+                                className="mr-2"
+                            />
+                            <span style={{ fontSize: '0.9rem', color: isDark ? '#94A3B8' : '#64748B' }}>Ghi nhớ đăng nhập</span>
+                        </label>
                     </div>
 
                     <motion.button

@@ -237,6 +237,8 @@ export function PostCard({ post, index = 0, onDelete }) {
                                     src={m.file_url}
                                     alt={m.file_name}
                                     className="rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity w-full"
+                                    loading="lazy"
+                                    decoding="async"
                                     style={{ aspectRatio: post.media.length >= 2 ? '1/1' : '16/9', maxHeight: post.media.length === 1 ? '320px' : '200px' }}
                                 />
                             ) : m.media_type === 'audio' ? (
