@@ -1,6 +1,6 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import get_current_user
@@ -9,6 +9,7 @@ import os
 import uuid
 import traceback
 import shutil
+import mimetypes
 
 router = APIRouter(prefix="/api/media", tags=["Media"])
 
@@ -190,8 +191,59 @@ async def upload_media_chunk(
             os.remove(final_path)
 
 @router.get("/files/{filename}")
-async def serve_file(filename: str):
+async def serve_file(filename: str, request: Request):
     file_path = os.path.join(UPLOAD_DIR, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File không tồn tại")
-    return FileResponse(file_path)
+    file_size = os.path.getsize(file_path)
+    media_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+    range_header = request.headers.get("range")
+
+    if not range_header:
+        response = FileResponse(file_path, media_type=media_type)
+        response.headers["Accept-Ranges"] = "bytes"
+        response.headers["Cache-Control"] = "public, max-age=2592000"
+        return response
+
+    if not range_header.startswith("bytes="):
+        raise HTTPException(status_code=416, detail="Range không hợp lệ")
+
+    range_value = range_header.replace("bytes=", "", 1).strip()
+    start_str, _, end_str = range_value.partition("-")
+    try:
+        start = int(start_str) if start_str else 0
+        end = int(end_str) if end_str else file_size - 1
+    except ValueError:
+        raise HTTPException(status_code=416, detail="Range không hợp lệ")
+
+    if start >= file_size or end >= file_size or start > end:
+        raise HTTPException(status_code=416, detail="Range vượt quá kích thước file")
+
+    chunk_size = 1024 * 1024
+    content_length = end - start + 1
+
+    def iter_file():
+        with open(file_path, "rb") as f:
+            f.seek(start)
+            bytes_remaining = content_length
+            while bytes_remaining > 0:
+                read_size = min(chunk_size, bytes_remaining)
+                data = f.read(read_size)
+                if not data:
+                    break
+                bytes_remaining -= len(data)
+                yield data
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Range": f"bytes {start}-{end}/{file_size}",
+        "Content-Length": str(content_length),
+        "Cache-Control": "public, max-age=2592000"
+    }
+
+    return StreamingResponse(
+        iter_file(),
+        status_code=206,
+        media_type=media_type,
+        headers=headers
+    )

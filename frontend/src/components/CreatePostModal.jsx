@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
 import { VideoEditorModal } from './VideoEditorModal';
+import { ImageEditorModal } from './ImageEditorModal';
 import { validateVideoOutput } from '../utils/videoEditor';
 
 const CHUNK_SIZE = 2 * 1024 * 1024;
@@ -19,6 +20,7 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
     const [loading, setLoading] = useState(false);
     const [files, setFiles] = useState([]);
     const [editingIndex, setEditingIndex] = useState(-1);
+    const [editingImageIndex, setEditingImageIndex] = useState(-1);
     const fileInputRef = useRef(null);
 
     const handleFileSelect = (e) => {
@@ -115,6 +117,7 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
         setIsAnonymous(false);
         setFiles([]);
         setEditingIndex(-1);
+        setEditingImageIndex(-1);
         onClose();
     };
 
@@ -132,6 +135,22 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
             };
         }));
         setEditingIndex(-1);
+    };
+
+    const applyEditedImage = (editedFile) => {
+        if (editingImageIndex < 0) return;
+        setFiles((prev) => prev.map((item, idx) => {
+            if (idx !== editingImageIndex) return item;
+            if (item.preview) URL.revokeObjectURL(item.preview);
+            return {
+                ...item,
+                file: editedFile,
+                name: editedFile.name,
+                type: 'image',
+                preview: URL.createObjectURL(editedFile),
+            };
+        }));
+        setEditingImageIndex(-1);
     };
 
     return (
@@ -226,9 +245,12 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
                                             >
                                                 <X size={12} />
                                             </button>
-                                            {f.type === 'video' && (
+                                            {(f.type === 'video' || f.type === 'image') && (
                                                 <button
-                                                    onClick={() => setEditingIndex(i)}
+                                                    onClick={() => {
+                                                        if (f.type === 'video') setEditingIndex(i);
+                                                        if (f.type === 'image') setEditingImageIndex(i);
+                                                    }}
                                                     className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
                                                     style={{ background: '#E53E3E', color: 'white' }}
                                                 >
@@ -297,6 +319,12 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
                 file={editingIndex >= 0 ? files[editingIndex]?.file : null}
                 onClose={() => setEditingIndex(-1)}
                 onApply={applyEditedVideo}
+            />
+            <ImageEditorModal
+                open={editingImageIndex >= 0}
+                file={editingImageIndex >= 0 ? files[editingImageIndex]?.file : null}
+                onClose={() => setEditingImageIndex(-1)}
+                onApply={applyEditedImage}
             />
         </AnimatePresence>
     );

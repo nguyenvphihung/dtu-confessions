@@ -1,16 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, ChevronLeft } from 'lucide-react';
+import { Heart, MessageCircle, Share2, ChevronLeft, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { getDailyReels, trackReelAnalytics, trackReelView } from '../api/reels';
 import { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
-import { CommentSection } from '../components/CommentSection';
+import { useDebouncedAction } from '../hooks/useDebouncedAction';
+
+const LazyCommentSection = lazy(() =>
+    import('../components/CommentSection').then((mod) => ({ default: mod.CommentSection }))
+);
 
 function ReelItem({ item, active, onLike, onShare, onWatch, onSwipeLeft, onNearEnd }) {
     const videoRef = useRef(null);
     const [showComments, setShowComments] = useState(false);
+    const [ready, setReady] = useState(false);
     const [liked, setLiked] = useState(Boolean(item.user_liked));
     const [likeCount, setLikeCount] = useState(item.like_count || 0);
+    const [commentCount, setCommentCount] = useState(item.comment_count || 0);
     const [touch, setTouch] = useState({ x: 0, t: 0 });
     const [lastTap, setLastTap] = useState(0);
     const watchStartRef = useRef(0);
@@ -19,7 +26,9 @@ function ReelItem({ item, active, onLike, onShare, onWatch, onSwipeLeft, onNearE
         const video = videoRef.current;
         if (!video) return;
         if (active) {
-            video.play().catch(() => {});
+            video.load();
+            video.play().catch(() => {
+            });
             watchStartRef.current = Date.now();
         } else {
             video.pause();
@@ -57,11 +66,13 @@ function ReelItem({ item, active, onLike, onShare, onWatch, onSwipeLeft, onNearE
             setLikeCount((v) => v + (prev ? 1 : -1));
         }
     };
+    const debouncedLike = useDebouncedAction(handleLike, 220);
+    const debouncedShare = useDebouncedAction(() => onShare(item), 220);
 
     const handleTap = () => {
         const now = Date.now();
-        if (now - lastTap < 260) {
-            handleLike();
+                if (now - lastTap < 260) {
+                    debouncedLike();
         }
         setLastTap(now);
     };
@@ -79,41 +90,78 @@ function ReelItem({ item, active, onLike, onShare, onWatch, onSwipeLeft, onNearE
     };
 
     return (
-        <section className="relative h-screen w-full snap-start bg-black" onDoubleClick={handleLike}>
+        <section className="relative h-screen w-full snap-start bg-black" onDoubleClick={debouncedLike}>
             <video
                 ref={videoRef}
                 src={item.file_url}
                 className="h-full w-full object-cover"
                 playsInline
                 loop
-                preload="metadata"
-                muted={false}
+                preload={active ? 'auto' : 'none'}
+                muted
                 onClick={handleTap}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
+                onLoadedData={() => setReady(true)}
+                onCanPlay={() => setReady(true)}
+                onWaiting={() => setReady(false)}
+                onStalled={() => setReady(false)}
             />
+            {!ready && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/55">
+                    <div className="w-9 h-9 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
             <div className="absolute bottom-22 left-4 text-white">
                 <div className="font-semibold">{item.author?.display_name || item.author?.student_id || 'Ẩn danh'}</div>
                 <div className="text-sm opacity-85">{item.view_count || 0} views</div>
             </div>
             <div className="absolute right-3 bottom-24 flex flex-col gap-4 text-white">
-                <button onClick={handleLike} className="cursor-pointer flex flex-col items-center">
+                <button onClick={debouncedLike} className="cursor-pointer flex flex-col items-center">
                     <Heart size={26} fill={liked ? '#E53E3E' : 'none'} color={liked ? '#E53E3E' : '#fff'} />
                     <span className="text-xs">{likeCount}</span>
                 </button>
                 <button onClick={() => setShowComments((v) => !v)} className="cursor-pointer flex flex-col items-center">
                     <MessageCircle size={26} />
+                    <span className="text-xs">{commentCount}</span>
                 </button>
-                <button onClick={() => onShare(item)} className="cursor-pointer flex flex-col items-center">
+                <button onClick={debouncedShare} className="cursor-pointer flex flex-col items-center">
                     <Share2 size={26} />
                 </button>
             </div>
-            {showComments && (
-                <div className="absolute inset-x-0 bottom-0 max-h-[58vh] rounded-t-2xl bg-[#0F0F17] p-3 overflow-y-auto">
-                    <CommentSection postId={item.post_id} />
-                </div>
-            )}
+            <AnimatePresence>
+                {showComments && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-20 bg-black/45"
+                        onClick={() => setShowComments(false)}
+                    >
+                        <motion.div
+                            initial={{ y: '100%' }}
+                            animate={{ y: 0 }}
+                            exit={{ y: '100%' }}
+                            transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+                            className="absolute inset-x-0 bottom-0 max-h-[68vh] rounded-t-2xl bg-[#0F0F17] overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                                <span className="text-sm font-semibold">Bình luận</span>
+                                <button onClick={() => setShowComments(false)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10 cursor-pointer">
+                                    <X size={16} />
+                                </button>
+                            </div>
+                            <div className="p-2 overflow-y-auto max-h-[calc(68vh-56px)]">
+                                <Suspense fallback={<div className="p-4 text-sm text-white/70">Đang tải bình luận...</div>}>
+                                    <LazyCommentSection entityType="reel" entityId={item.media_id} isOpen onCountChange={setCommentCount} />
+                                </Suspense>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </section>
     );
 }

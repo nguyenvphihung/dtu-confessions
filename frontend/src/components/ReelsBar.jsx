@@ -4,8 +4,27 @@ import { Play } from 'lucide-react';
 import { getDailyReels } from '../api/reels';
 import { toast } from 'react-toastify';
 import { getApiErrorMessage } from '../api/axios';
+import { getReelThumbnailUrl } from '../utils/reelThumbnail';
 
 const ITEM_WIDTH = 120;
+
+function ReelThumb({ item }) {
+    const [loaded, setLoaded] = useState(false);
+
+    return (
+        <>
+            <img
+                src={getReelThumbnailUrl(item)}
+                alt={item.file_name || 'thumbnail'}
+                className={`w-full h-full object-cover opacity-85 ${loaded ? 'block' : 'hidden'}`}
+                loading="lazy"
+                onLoad={() => setLoaded(true)}
+                onError={() => setLoaded(false)}
+            />
+            {!loaded && <div className="w-full h-full" style={{ background: 'linear-gradient(180deg, #0F172A 0%, #111827 100%)' }} />}
+        </>
+    );
+}
 
 export function ReelsBar({ isDark }) {
     const navigate = useNavigate();
@@ -106,7 +125,7 @@ export function ReelsBar({ isDark }) {
                                 className="absolute top-0 w-[108px] h-[152px] rounded-xl overflow-hidden cursor-pointer"
                                 style={{ left: pos * ITEM_WIDTH, background: '#000' }}
                             >
-                                <video src={item.file_url} className="w-full h-full object-cover opacity-85" muted playsInline preload="metadata" />
+                                <ReelThumb item={item} />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                                 <div className="absolute bottom-2 left-2 right-2 text-left text-white">
                                     <div className="text-xs line-clamp-1">{item.author?.display_name || item.author?.student_id || 'Ẩn danh'}</div>

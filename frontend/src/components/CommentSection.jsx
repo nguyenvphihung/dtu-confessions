@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
+import { useDebouncedAction } from '../hooks/useDebouncedAction';
 
 const timeAgo = (dateString) => {
     const now = new Date();
@@ -21,7 +22,7 @@ const timeAgo = (dateString) => {
     return date.toLocaleDateString('vi-VN');
 };
 
-const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => {
+const CommentItem = ({ comment, entityType, entityId, isDark, onReplySuccess, depth = 0 }) => {
     const { user } = useAuth();
     const [isLiked, setIsLiked] = useState(comment.user_liked);
     const [likeCount, setLikeCount] = useState(comment.like_count);
@@ -69,7 +70,7 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
         if (!replyContent.trim() || sendingReply) return;
         setSendingReply(true);
         try {
-            await api.post(`/posts/${postId}/comments`, {
+            await api.post(`/${entityType}s/${entityId}/comments`, {
                 content: replyContent,
                 parent_id: comment.id
             });
@@ -82,6 +83,9 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
             setSendingReply(false);
         }
     };
+
+    const debouncedLike = useDebouncedAction(handleLike, 200);
+    const debouncedToggleReply = useDebouncedAction(() => setIsReplying((v) => !v), 120);
 
     return (
         <motion.div
@@ -139,7 +143,7 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
                     <div className="flex items-center gap-4 mt-1 ml-1" style={{ fontSize: '0.7rem', color: isDark ? '#64748B' : '#94A3B8', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>
                         <span>{timeAgo(comment.created_at)}</span>
                         <button
-                            onClick={handleLike}
+                            onClick={debouncedLike}
                             className="flex items-center gap-1 hover:text-[#f43f5e] transition-colors"
                             style={{ color: isLiked ? '#f43f5e' : '' }}
                         >
@@ -147,7 +151,7 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
                             <span>{likeCount > 0 ? likeCount : 'Thích'}</span>
                         </button>
                         <button
-                            onClick={() => setIsReplying(!isReplying)}
+                            onClick={debouncedToggleReply}
                             className="flex items-center gap-1 hover:text-[#C53030] transition-colors"
                         >
                             <MessageCircle size={12} />
@@ -215,7 +219,8 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
                         <CommentItem
                             key={reply.id}
                             comment={reply}
-                            postId={postId}
+                            entityType={entityType}
+                            entityId={entityId}
                             isDark={isDark}
                             onReplySuccess={onReplySuccess}
                             depth={depth + 1}
@@ -227,9 +232,10 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
     );
 };
 
-export function CommentSection({ postId, isOpen }) {
+export function CommentSection({ postId, entityType = 'post', entityId, isOpen, onCountChange }) {
     const { isDark } = useTheme();
     const { user } = useAuth();
+    const targetId = entityId ?? postId;
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
     const [loading, setLoading] = useState(false);
@@ -239,13 +245,17 @@ export function CommentSection({ postId, isOpen }) {
         if (isOpen) {
             fetchComments();
         }
-    }, [isOpen, postId]);
+    }, [isOpen, targetId, entityType]);
 
     const fetchComments = async () => {
         setLoading(true);
         try {
-            const res = await api.get(`/posts/${postId}/comments`);
+            const res = await api.get(`/${entityType}s/${targetId}/comments`);
             setComments(res.data);
+            if (onCountChange) {
+                const countNestedComments = (list) => list.reduce((acc, item) => acc + 1 + countNestedComments(item.replies || []), 0);
+                onCountChange(countNestedComments(res.data || []));
+            }
         } catch (err) {
             toast.error(getApiErrorMessage(err, 'Không thể tải bình luận'));
         } finally {
@@ -258,7 +268,7 @@ export function CommentSection({ postId, isOpen }) {
         if (!newComment.trim() || sending) return;
         setSending(true);
         try {
-            await api.post(`/posts/${postId}/comments`, { content: newComment });
+            await api.post(`/${entityType}s/${targetId}/comments`, { content: newComment });
             setNewComment('');
             fetchComments();
         } catch (err) {
@@ -334,7 +344,8 @@ export function CommentSection({ postId, isOpen }) {
                                 <CommentItem
                                     key={comment.id}
                                     comment={comment}
-                                    postId={postId}
+                                    entityType={entityType}
+                                    entityId={targetId}
                                     isDark={isDark}
                                     onReplySuccess={fetchComments}
                                 />

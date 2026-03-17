@@ -1,33 +1,34 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from typing import List
-from database import get_db
-from auth import get_current_user, get_optional_user
 import models
-import schemas
 
-router = APIRouter(tags=["Comments"])
 
-@router.post("/api/posts/{post_id}/comments", response_model=schemas.CommentCreate, status_code=status.HTTP_201_CREATED)
-def create_comment(post_id: int, comment_data: schemas.CommentCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def create_comment_for_post(
+    post_id: int,
+    content: str,
+    parent_id: int | None,
+    current_user: models.User,
+    db: Session,
+):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài viết")
-    
-    if comment_data.parent_id:
-        parent = db.query(models.Comment).filter(models.Comment.id == comment_data.parent_id).first()
+
+    if parent_id:
+        parent = db.query(models.Comment).filter(models.Comment.id == parent_id).first()
         if not parent:
             raise HTTPException(status_code=404, detail="Không tìm thấy bình luận gốc")
         if parent.post_id != post_id:
             raise HTTPException(status_code=400, detail="Bình luận gốc không thuộc bài viết này")
-        
+
     new_comment = models.Comment(
         user_id=current_user.id,
         post_id=post_id,
-        parent_id=comment_data.parent_id,
-        content=comment_data.content
+        parent_id=parent_id,
+        content=content
     )
     db.add(new_comment)
     db.commit()
@@ -46,14 +47,16 @@ def create_comment(post_id: int, comment_data: schemas.CommentCreate, db: Sessio
         "replies": []
     }
 
-@router.get("/api/posts/{post_id}/comments", response_model=List[schemas.CommentResponse])
-def get_comments(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_optional_user)):
+
+def get_comments_for_post(post_id: int, db: Session, current_user: models.User | None) -> List[dict]:
     likes_subq = db.query(func.count(models.CommentInteraction.id)).filter(
         models.CommentInteraction.comment_id == models.Comment.id,
         models.CommentInteraction.interaction_type == "like"
     ).correlate(models.Comment).scalar_subquery()
 
-    query = db.query(models.Comment, likes_subq.label("like_count")).options(joinedload(models.Comment.user)).filter(models.Comment.post_id == post_id)
+    query = db.query(models.Comment, likes_subq.label("like_count")).options(
+        joinedload(models.Comment.user)
+    ).filter(models.Comment.post_id == post_id)
 
     if current_user:
         user_liked_subq = db.query(models.CommentInteraction.id).filter(
@@ -72,7 +75,6 @@ def get_comments(post_id: int, db: Session = Depends(get_db), current_user: mode
         else:
             comment, like_count = row
             user_liked = False
-        
         comment_dict[comment.id] = {
             "id": comment.id,
             "user_id": comment.user_id,
@@ -87,7 +89,7 @@ def get_comments(post_id: int, db: Session = Depends(get_db), current_user: mode
         }
 
     root_comments = []
-    for comment_id, comment_data in comment_dict.items():
+    for comment_data in comment_dict.values():
         if comment_data["parent_id"] is None:
             root_comments.append(comment_data)
         else:
@@ -96,15 +98,3 @@ def get_comments(post_id: int, db: Session = Depends(get_db), current_user: mode
                 comment_dict[parent_id]["replies"].append(comment_data)
 
     return root_comments
-
-
-@router.delete("/api/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_comment(comment_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Không tìm thấy comment")
-    if comment.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Bạn không có quyền xóa comment này")
-
-    db.delete(comment)
-    db.commit()
