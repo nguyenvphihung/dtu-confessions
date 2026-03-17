@@ -4,7 +4,8 @@ import { useTheme } from '../context/ThemeContext';
 import { PostCard } from '../components/PostCard';
 import { Calendar, Mail, Hash } from 'lucide-react';
 import { motion } from 'motion/react';
-import api from '../api/axios';
+import api, { getApiErrorMessage } from '../api/axios';
+import { toast } from 'react-toastify';
 
 export function Profile() {
     const { isDark } = useTheme();
@@ -19,7 +20,7 @@ export function Profile() {
                 const myPosts = res.data.filter((p) => p.author_id === user?.id);
                 setPosts(myPosts);
             } catch (err) {
-                console.error('Fetch posts error:', err);
+                toast.error(getApiErrorMessage(err, 'Không thể tải bài viết của bạn'));
             } finally {
                 setLoading(false);
             }

@@ -1,14 +1,21 @@
 from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from database import get_db
 from auth import get_current_user
 import models
-import schemas
 
 router = APIRouter(tags=["Interactions"])
 
-@router.post("/api/posts/{post_id}/like", response_model=schemas.InteractionResponse, status_code=status.HTTP_201_CREATED)
+def _success(data=None, message="Thành công"):
+    return {
+        "success": True,
+        "message": message,
+        "data": data
+    }
+
+@router.post("/api/posts/{post_id}/like", status_code=status.HTTP_201_CREATED)
 def like_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
@@ -31,9 +38,18 @@ def like_post(post_id: int, db: Session = Depends(get_db), current_user: models.
     db.add(interaction)
     db.commit()
     db.refresh(interaction)
-    return interaction
+    return _success(
+        data={
+            "id": interaction.id,
+            "post_id": interaction.post_id,
+            "user_id": interaction.user_id,
+            "interaction_type": interaction.interaction_type,
+            "created_at": interaction.created_at
+        },
+        message="Đã like bài viết"
+    )
 
-@router.delete("/api/posts/{post_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/api/posts/{post_id}/like", status_code=status.HTTP_200_OK)
 def unlike_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     interaction = db.query(models.Interaction).filter(
         models.Interaction.user_id == current_user.id,
@@ -46,12 +62,13 @@ def unlike_post(post_id: int, db: Session = Depends(get_db), current_user: model
     
     db.delete(interaction)
     db.commit()
+    return _success(message="Đã bỏ like bài viết")
 
-@router.post("/api/comments/{comment_id}/like", response_model=schemas.InteractionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/api/comments/{comment_id}/like", status_code=status.HTTP_200_OK)
 def like_comment(comment_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
     if not comment:
-        raise HTTPException(status_code=404, detail="Không tìm thây bình luận")
+        raise HTTPException(status_code=404, detail="Không tìm thấy bình luận")
     
     existing = db.query(models.CommentInteraction).filter(
         models.CommentInteraction.user_id == current_user.id,
@@ -60,19 +77,34 @@ def like_comment(comment_id: int, db: Session = Depends(get_db), current_user: m
     ).first()
 
     if existing:
-        raise HTTPException(status_code=400, detail="Đã like comment này rồi")
-    
+        db.delete(existing)
+        db.commit()
+        like_count = db.query(func.count(models.CommentInteraction.id)).filter(
+            models.CommentInteraction.comment_id == comment_id,
+            models.CommentInteraction.interaction_type == "like"
+        ).scalar() or 0
+        return _success(
+            data={"status": "unliked", "comment_id": comment_id, "like_count": like_count},
+            message="Đã bỏ like bình luận"
+        )
+
     interaction = models.CommentInteraction(
-        user_id = current_user.id,
-        comment_id = comment_id,
-        interaction_type = "like"
+        user_id=current_user.id,
+        comment_id=comment_id,
+        interaction_type="like"
     )
     db.add(interaction)
     db.commit()
-    db.refresh(interaction)
-    return interaction
+    like_count = db.query(func.count(models.CommentInteraction.id)).filter(
+        models.CommentInteraction.comment_id == comment_id,
+        models.CommentInteraction.interaction_type == "like"
+    ).scalar() or 0
+    return _success(
+        data={"status": "liked", "comment_id": comment_id, "like_count": like_count},
+        message="Đã like bình luận"
+    )
 
-@router.delete("/api/comments/{comment_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/api/comments/{comment_id}/like", status_code=status.HTTP_200_OK)
 def unlike_comment(comment_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     interaction = db.query(models.CommentInteraction).filter(
         models.CommentInteraction.user_id == current_user.id,
@@ -85,4 +117,12 @@ def unlike_comment(comment_id: int, db: Session = Depends(get_db), current_user:
     
     db.delete(interaction)
     db.commit()
+    like_count = db.query(func.count(models.CommentInteraction.id)).filter(
+        models.CommentInteraction.comment_id == comment_id,
+        models.CommentInteraction.interaction_type == "like"
+    ).scalar() or 0
+    return _success(
+        data={"status": "unliked", "comment_id": comment_id, "like_count": like_count},
+        message="Đã bỏ like bình luận"
+    )
 

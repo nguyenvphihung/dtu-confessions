@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
 import { getUsers, changeUserRole, toggleBanUser, adminDeletePost, adminDeleteComment } from '../api/admin';
 import { motion, AnimatePresence } from 'motion/react';
-import api from '../api/axios';
+import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
 
 const TABS = [
@@ -102,7 +102,7 @@ function UsersTab({ isDark }) {
             setUsers(data);
             setHasMore(data.length === limit);
         } catch (err) {
-            console.error('Lỗi tải danh sách người dùng:', err);
+            toast.error(getApiErrorMessage(err, 'Không thể tải danh sách người dùng'));
         } finally {
             setLoading(false);
         }
@@ -137,8 +137,7 @@ function UsersTab({ isDark }) {
             await changeUserRole(userId, newRole);
             fetchUsers(page * limit, search);
         } catch (err) {
-            console.error('Lỗi đổi vai trò:', err);
-            toast.error('Không thể đổi vai trò. Vui lòng thử lại.');
+            toast.error(getApiErrorMessage(err, 'Không thể đổi vai trò'));
         }
     };
 
@@ -156,8 +155,7 @@ function UsersTab({ isDark }) {
             await toggleBanUser(userId, !isBanned);
             fetchUsers(page * limit, search);
         } catch (err) {
-            console.error('Lỗi cấm/bỏ cấm:', err);
-            toast.error('Không thể thực hiện. Vui lòng thử lại.');
+            toast.error(getApiErrorMessage(err, 'Không thể cấm hoặc bỏ cấm người dùng'));
         }
     };
 
@@ -327,7 +325,7 @@ function PostsTab({ isDark }) {
             const res = await api.get('/posts/?skip=0&limit=50');
             setPosts(res.data);
         } catch (err) {
-            console.error('Lỗi tải bài viết:', err);
+            toast.error(getApiErrorMessage(err, 'Không thể tải danh sách bài viết'));
         } finally {
             setLoading(false);
         }
@@ -350,8 +348,7 @@ function PostsTab({ isDark }) {
             await adminDeletePost(postId);
             setPosts((prev) => prev.filter((p) => p.id !== postId));
         } catch (err) {
-            console.error('Lỗi xóa bài viết:', err);
-            toast.error('Không thể xóa bài viết. Vui lòng thử lại.');
+            toast.error(getApiErrorMessage(err, 'Không thể xóa bài viết'));
         }
     };
 
@@ -375,8 +372,7 @@ function PostsTab({ isDark }) {
             );
             fetchPosts();
         } catch (err) {
-            console.error('Lỗi xóa bình luận:', err);
-            toast.error('Không thể xóa bình luận. Vui lòng thử lại.');
+            toast.error(getApiErrorMessage(err, 'Không thể xóa bình luận'));
         }
     };
 
@@ -423,7 +419,7 @@ function PostAdminItem({ post, isDark, cardStyle, onDeletePost, onDeleteComment 
             const res = await api.get(`/posts/${post.id}/comments`);
             setComments(res.data);
         } catch (err) {
-            console.error('Lỗi tải bình luận:', err);
+            toast.error(getApiErrorMessage(err, 'Không thể tải bình luận'));
         } finally {
             setLoadingComments(false);
         }

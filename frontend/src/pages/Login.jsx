@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { MessageSquareHeart, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getApiErrorMessage } from '../api/axios';
 
 export function Login() {
     const { isDark } = useTheme();
@@ -24,7 +25,7 @@ export function Login() {
             await login(studentId, password, remember);
             navigate('/');
         } catch (err) {
-            setError(err.response?.data?.detail || 'Đăng nhập thất bại');
+            setError(getApiErrorMessage(err, 'Đăng nhập thất bại'));
         } finally {
             setLoading(false);
         }

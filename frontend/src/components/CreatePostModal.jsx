@@ -1,9 +1,15 @@
 import { useState, useRef } from 'react';
-import { X, PenSquare, Eye, EyeOff, ImagePlus, Music, Trash2 } from 'lucide-react';
+import { X, PenSquare, Eye, EyeOff, ImagePlus, Music, Video, Trash2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
-import api from '../api/axios';
+import api, { getApiErrorMessage } from '../api/axios';
+import { toast } from 'react-toastify';
+import { VideoEditorModal } from './VideoEditorModal';
+import { validateVideoOutput } from '../utils/videoEditor';
+
+const CHUNK_SIZE = 2 * 1024 * 1024;
+const CHUNK_THRESHOLD = 8 * 1024 * 1024;
 
 export function CreatePostModal({ open, onClose, onPostCreated }) {
     const { isDark } = useTheme();
@@ -12,21 +18,59 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
     const [isAnonymous, setIsAnonymous] = useState(false);
     const [loading, setLoading] = useState(false);
     const [files, setFiles] = useState([]);
+    const [editingIndex, setEditingIndex] = useState(-1);
     const fileInputRef = useRef(null);
 
     const handleFileSelect = (e) => {
         const selectedFiles = Array.from(e.target.files || []);
         const newFiles = selectedFiles.map((file) => {
             const isImage = file.type.startsWith('image/');
+            const isVideo = file.type.startsWith('video/');
+            if (isVideo) {
+                const check = validateVideoOutput(file, 120);
+                if (!check.ok) {
+                    toast.error(check.message);
+                }
+            }
             return {
                 file,
-                preview: isImage ? URL.createObjectURL(file) : null,
-                type: isImage ? 'image' : 'audio',
+                preview: isImage || isVideo ? URL.createObjectURL(file) : null,
+                type: isImage ? 'image' : (isVideo ? 'video' : 'audio'),
                 name: file.name,
             };
-        });
+        }).filter((item) => item.file.type.startsWith('image/') || item.file.type.startsWith('audio/') || item.file.type.startsWith('video/'));
         setFiles((prev) => [...prev, ...newFiles]);
         e.target.value = '';
+    };
+
+    const uploadByChunk = async (postId, file) => {
+        const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+            const start = chunkIndex * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, file.size);
+            const blob = file.slice(start, end);
+            const formData = new FormData();
+            formData.append('upload_id', uploadId);
+            formData.append('chunk_index', String(chunkIndex));
+            formData.append('total_chunks', String(totalChunks));
+            formData.append('file_name', file.name);
+            formData.append('mime_type', file.type || '');
+            formData.append('chunk', blob, file.name);
+            await api.post(`/media/upload-chunk/${postId}`, formData);
+        }
+    };
+
+    const uploadSingleFile = async (postId, file) => {
+        const needChunk = file.size > CHUNK_THRESHOLD || file.type.startsWith('video/');
+        if (needChunk) {
+            await uploadByChunk(postId, file);
+            return;
+        }
+        const formData = new FormData();
+        formData.append('file', file);
+        await api.post(`/media/upload/${postId}`, formData);
     };
 
     const removeFile = (index) => {
@@ -46,17 +90,12 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
             const postRes = await api.post('/posts/', { content, is_anonymous: isAnonymous });
             const postId = postRes.data.id;
 
-            // 2. Upload từng file
             for (const f of files) {
-                const formData = new FormData();
-                formData.append('file', f.file);
-                await api.post(`/media/upload/${postId}`, formData);
+                await uploadSingleFile(postId, f.file);
             }
 
-            // 3. Lấy lại post đầy đủ (có media + author)
             const fullPost = await api.get(`/posts/${postId}`);
 
-            // Dọn dẹp
             files.forEach((f) => f.preview && URL.revokeObjectURL(f.preview));
             setContent('');
             setIsAnonymous(false);
@@ -64,7 +103,7 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
             onClose();
             if (onPostCreated) onPostCreated(fullPost.data);
         } catch (err) {
-            console.error('Create post error:', err);
+            toast.error(getApiErrorMessage(err, 'Không thể đăng bài viết'));
         } finally {
             setLoading(false);
         }
@@ -75,7 +114,24 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
         setContent('');
         setIsAnonymous(false);
         setFiles([]);
+        setEditingIndex(-1);
         onClose();
+    };
+
+    const applyEditedVideo = (editedFile) => {
+        if (editingIndex < 0) return;
+        setFiles((prev) => prev.map((item, idx) => {
+            if (idx !== editingIndex) return item;
+            if (item.preview) URL.revokeObjectURL(item.preview);
+            return {
+                ...item,
+                file: editedFile,
+                name: editedFile.name,
+                type: 'video',
+                preview: URL.createObjectURL(editedFile),
+            };
+        }));
+        setEditingIndex(-1);
     };
 
     return (
@@ -152,10 +208,12 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
                                         <div key={i} className="relative group">
                                             {f.type === 'image' ? (
                                                 <img src={f.preview} alt="" className="w-20 h-20 rounded-xl object-cover" />
+                                            ) : f.type === 'video' ? (
+                                                <video src={f.preview} className="w-20 h-20 rounded-xl object-cover" />
                                             ) : (
                                                 <div className="w-20 h-20 rounded-xl flex flex-col items-center justify-center gap-1"
                                                     style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(197,48,48,0.08)' }}>
-                                                    <Music size={20} style={{ color: '#E53E3E' }} />
+                                                    {f.type === 'audio' ? <Music size={20} style={{ color: '#E53E3E' }} /> : <Video size={20} style={{ color: '#E53E3E' }} />}
                                                     <span className="text-xs truncate w-16 text-center" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
                                                         {f.name}
                                                     </span>
@@ -168,6 +226,15 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
                                             >
                                                 <X size={12} />
                                             </button>
+                                            {f.type === 'video' && (
+                                                <button
+                                                    onClick={() => setEditingIndex(i)}
+                                                    className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    style={{ background: '#E53E3E', color: 'white' }}
+                                                >
+                                                    <PenSquare size={11} />
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -203,7 +270,7 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept="image/*,audio/*"
+                                    accept="image/*,audio/*,video/*"
                                     multiple
                                     className="hidden"
                                     onChange={handleFileSelect}
@@ -225,6 +292,12 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
                     </motion.div>
                 </motion.div>
             )}
+            <VideoEditorModal
+                open={editingIndex >= 0}
+                file={editingIndex >= 0 ? files[editingIndex]?.file : null}
+                onClose={() => setEditingIndex(-1)}
+                onApply={applyEditedVideo}
+            />
         </AnimatePresence>
     );
 }

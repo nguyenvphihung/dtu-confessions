@@ -4,7 +4,10 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { CommentSection } from './CommentSection';
-import api from '../api/axios';
+import ImageModal from './ImageModal';
+import { VideoModal } from './VideoModal';
+import { AutoPlayVideo } from './AutoPlayVideo';
+import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 
@@ -35,6 +38,9 @@ export function PostCard({ post, index = 0, onDelete }) {
     const [showComments, setShowComments] = useState(false);
     const [commentCount, setCommentCount] = useState(post.comment_count || 0);
     const [expanded, setExpanded] = useState(false);
+    const [showImageModal, setShowImageModal] = useState(false);
+    const [modalStartIndex, setModalStartIndex] = useState(0);
+    const [activeVideo, setActiveVideo] = useState(null);
 
     // Dropdown state
     const [showMenu, setShowMenu] = useState(false);
@@ -71,8 +77,7 @@ export function PostCard({ post, index = 0, onDelete }) {
             await api.delete(`/posts/${post.id}`);
             if (onDelete) onDelete(post.id);
         } catch (err) {
-            console.error('Lỗi khi xóa bài:', err);
-            toast.error('Không thể xóa bài viết. Vui lòng thử lại sau.');
+            toast.error(getApiErrorMessage(err, 'Không thể xóa bài viết'));
             setIsDeleting(false);
         }
     };
@@ -88,7 +93,7 @@ export function PostCard({ post, index = 0, onDelete }) {
             }
             setLiked(!liked);
         } catch (err) {
-            console.error('Like error:', err);
+            toast.error(getApiErrorMessage(err, 'Không thể tương tác bài viết'));
         }
     };
 
@@ -230,7 +235,7 @@ export function PostCard({ post, index = 0, onDelete }) {
             {post.media && post.media.length > 0 && (
                 <div className="px-3 sm:px-5 pb-3">
                     <div className={`grid gap-1.5 ${post.media.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                        {post.media.map((m) =>
+                        {post.media.map((m, idx) =>
                             m.media_type === 'image' ? (
                                 <img
                                     key={m.id}
@@ -240,6 +245,7 @@ export function PostCard({ post, index = 0, onDelete }) {
                                     loading="lazy"
                                     decoding="async"
                                     style={{ aspectRatio: post.media.length >= 2 ? '1/1' : '16/9', maxHeight: post.media.length === 1 ? '320px' : '200px' }}
+                                    onClick={() => { setModalStartIndex(idx); setShowImageModal(true); }}
                                 />
                             ) : m.media_type === 'audio' ? (
                                 <div key={m.id} className="w-full">
@@ -247,11 +253,18 @@ export function PostCard({ post, index = 0, onDelete }) {
                                         <source src={m.file_url} type={m.mime_type} />
                                     </audio>
                                 </div>
+                            ) : m.media_type === 'video' ? (
+                                <AutoPlayVideo key={m.id} media={m} onOpen={setActiveVideo} />
                             ) : null
                         )}
                     </div>
                 </div>
             )}
+
+            {showImageModal && (
+                <ImageModal images={post.media.filter(m => m.media_type === 'image')} postId={post.id} initialIndex={modalStartIndex} onClose={() => setShowImageModal(false)} />
+            )}
+            <VideoModal open={!!activeVideo} source={activeVideo} onClose={() => setActiveVideo(null)} />
 
             {/* Divider */}
             <div className="mx-3 sm:mx-5" style={{ height: 1, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)' }} />

@@ -4,6 +4,11 @@ const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || '/api',
     withCredentials: true,
 });
+
+export const getApiErrorMessage = (error, fallback = 'Đã xảy ra lỗi') => {
+    return error?.response?.data?.error?.message || error?.response?.data?.detail || fallback;
+};
+
 // Ensure cookies are sent; we no longer auto-inject Authorization from storage.
 api.interceptors.request.use((config) => {
     if (config.data instanceof FormData) {
@@ -16,7 +21,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401 && !error.config.url.includes('/auth/')) {
+        if (error.response?.status === 401 && !error.config?.url?.includes('/auth/')) {
             // If server rejects due to auth, redirect to login.
             window.location.href = '/login';
         }

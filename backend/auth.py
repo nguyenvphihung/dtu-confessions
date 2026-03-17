@@ -74,11 +74,14 @@ def get_admin_user(current_user: models.User = Depends(get_current_user)):
 
 oauth_optional_user = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
-def get_optional_user(token: str = Depends(oauth_optional_user), db: Session = Depends(get_db)):
-    if not token:
+def get_optional_user(token: str = Depends(oauth_optional_user), db: Session = Depends(get_db), request: Request = None):
+    tok = token
+    if not tok and request:
+        tok = request.cookies.get('access_token')
+    if not tok:
         return None
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(tok, SECRET_KEY, algorithms=[ALGORITHM])
         user_id_str: str = payload.get("sub")
         if user_id_str is None:
             return None

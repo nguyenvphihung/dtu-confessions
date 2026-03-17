@@ -3,7 +3,7 @@ import { Send, UserCircle, Heart, MessageCircle, Trash2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
-import api from '../api/axios';
+import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 
@@ -42,8 +42,7 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
             await api.delete(`/comments/${comment.id}`);
             onReplySuccess();
         } catch (err) {
-            console.error('Lỗi khi xóa bình luận:', err);
-            toast.error('Không thể xóa bình luận. Vui lòng thử lại sau.');
+            toast.error(getApiErrorMessage(err, 'Không thể xóa bình luận'));
             setIsDeleting(false);
         }
     };
@@ -61,6 +60,7 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
         } catch (error) {
             setIsLiked(prevLiked);
             setLikeCount(prevCount);
+            toast.error(getApiErrorMessage(error, 'Không thể tương tác bình luận'));
         }
     };
 
@@ -77,7 +77,7 @@ const CommentItem = ({ comment, postId, isDark, onReplySuccess, depth = 0 }) => 
             setIsReplying(false);
             onReplySuccess();
         } catch (error) {
-            console.error('Create reply error:', error);
+            toast.error(getApiErrorMessage(error, 'Không thể gửi phản hồi'));
         } finally {
             setSendingReply(false);
         }
@@ -247,7 +247,7 @@ export function CommentSection({ postId, isOpen }) {
             const res = await api.get(`/posts/${postId}/comments`);
             setComments(res.data);
         } catch (err) {
-            console.error('Fetch comments error:', err);
+            toast.error(getApiErrorMessage(err, 'Không thể tải bình luận'));
         } finally {
             setLoading(false);
         }
@@ -262,7 +262,7 @@ export function CommentSection({ postId, isOpen }) {
             setNewComment('');
             fetchComments();
         } catch (err) {
-            console.error('Create comment error:', err);
+            toast.error(getApiErrorMessage(err, 'Không thể gửi bình luận'));
         } finally {
             setSending(false);
         }

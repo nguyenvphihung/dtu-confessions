@@ -108,26 +108,3 @@ def delete_comment(comment_id: int, db: Session = Depends(get_db), current_user:
 
     db.delete(comment)
     db.commit()
-
-
-@router.post("/api/comments/{comment_id}/like", status_code=status.HTTP_200_OK)
-def like_comment(comment_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Không tìm thấy bình luận")
-
-    existing = db.query(models.CommentInteraction).filter(
-        models.CommentInteraction.user_id == current_user.id,
-        models.CommentInteraction.comment_id == comment_id,
-        models.CommentInteraction.interaction_type == "like"
-    ).first()
-
-    if existing:
-        db.delete(existing)
-        db.commit()
-        return {"status": "unliked"}
-    else:
-        new_like = models.CommentInteraction(user_id=current_user.id, comment_id=comment_id, interaction_type="like")
-        db.add(new_like)
-        db.commit()
-        return {"status": "liked"}

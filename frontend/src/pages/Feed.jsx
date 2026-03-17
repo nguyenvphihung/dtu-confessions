@@ -4,10 +4,12 @@ import { useSearchParams } from 'react-router-dom';
 import { PenSquare } from 'lucide-react';
 import { PostCard } from '../components/PostCard';
 import { CreatePostModal } from '../components/CreatePostModal';
+import { ReelsBar } from '../components/ReelsBar';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
-import api from '../api/axios';
+import api, { getApiErrorMessage } from '../api/axios';
+import { toast } from 'react-toastify';
 
 export function Feed() {
     const { isDark } = useTheme();
@@ -28,7 +30,7 @@ export function Feed() {
             if (res.data.length < 20) setHasMore(false);
             setPosts((prev) => append ? [...prev, ...res.data] : res.data);
         } catch (err) {
-            console.error('Fetch posts error:', err);
+            toast.error(getApiErrorMessage(err, 'Không thể tải bài viết'));
         } finally {
             setLoading(false);
         }
@@ -70,6 +72,7 @@ export function Feed() {
 
     return (
         <div>
+            {!searchQuery && <ReelsBar isDark={isDark} />}
             {/* Quick Post */}
             {!searchQuery && (
                 <motion.div

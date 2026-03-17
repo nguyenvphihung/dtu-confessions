@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime, UniqueConstraint, func
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime, UniqueConstraint, func, Float
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -100,3 +100,24 @@ class CommentInteraction(Base):
 
     user = relationship("User", back_populates="comment_interactions")
     comment = relationship("Comment", back_populates="comment_interactions")
+
+
+class ReelView(Base):
+    __tablename__ = "reel_views"
+
+    id = Column(Integer, primary_key=True, index=True)
+    media_id = Column(Integer, ForeignKey("post_media.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    watch_time = Column(Float, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class ReelInteraction(Base):
+    __tablename__ = "reel_interactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    media_id = Column(Integer, ForeignKey("post_media.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    interaction_type = Column(String(30), nullable=False, index=True)
+    watch_time = Column(Float, default=0)
+    created_at = Column(DateTime, server_default=func.now())

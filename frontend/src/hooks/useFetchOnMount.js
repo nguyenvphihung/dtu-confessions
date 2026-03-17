@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { toast } from 'react-toastify';
 
 // Call the latest fetch function when the dependencies change.
 // We keep a ref to the latest function so the effect doesn't close over a stale
@@ -9,13 +10,10 @@ export function useFetchOnMount(fetchFn, deps = []) {
     fnRef.current = fetchFn;
 
     useEffect(() => {
-        // call the latest function when effect runs
         try {
             fnRef.current();
         } catch (e) {
-            // eslint-disable-next-line no-console
-            console.error('useFetchOnMount error:', e);
+            toast.error('Không thể tải dữ liệu');
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, deps);
 }

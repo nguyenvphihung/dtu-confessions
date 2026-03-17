@@ -9,6 +9,7 @@ import { Register } from './pages/Register';
 import { Feed } from './pages/Feed';
 import { Profile } from './pages/Profile';
 import { Admin } from './pages/Admin';
+import Reels from './pages/Reels';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
@@ -34,6 +35,7 @@ function App() {
               <Route path="profile" element={<Profile />} />
               <Route path="admin" element={<Admin />} />
             </Route>
+            <Route path="/reels" element={<ProtectedRoute><Reels /></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { MessageSquareHeart, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getApiErrorMessage } from '../api/axios';
 
 export function Register() {
     const { isDark } = useTheme();
@@ -24,7 +25,7 @@ export function Register() {
             await register(form);
             navigate('/login');
         } catch (err) {
-            setError(err.response?.data?.detail || 'Đăng ký thất bại');
+            setError(getApiErrorMessage(err, 'Đăng ký thất bại'));
         } finally {
             setLoading(false);
         }
