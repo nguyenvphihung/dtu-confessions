@@ -66,6 +66,8 @@ class PostMedia(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     post = relationship("Post", back_populates="media")
+    reel_views = relationship("ReelView", back_populates="media", cascade="all, delete-orphan")
+    reel_interactions = relationship("ReelInteraction", back_populates="media", cascade="all, delete-orphan")
 
 
 class Interaction(Base):
@@ -110,6 +112,7 @@ class ReelView(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     watch_time = Column(Float, default=0)
     created_at = Column(DateTime, server_default=func.now())
+    media = relationship("PostMedia", back_populates="reel_views")
 
 
 class ReelInteraction(Base):
@@ -121,3 +124,4 @@ class ReelInteraction(Base):
     interaction_type = Column(String(30), nullable=False, index=True)
     watch_time = Column(Float, default=0)
     created_at = Column(DateTime, server_default=func.now())
+    media = relationship("PostMedia", back_populates="reel_interactions")

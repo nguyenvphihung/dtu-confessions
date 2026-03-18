@@ -10,6 +10,10 @@ import uuid
 import traceback
 import shutil
 import mimetypes
+from datetime import timedelta
+from minio import Minio
+from minio.error import S3Error
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/media", tags=["Media"])
 
@@ -18,6 +22,95 @@ CHUNK_DIR = os.path.join(UPLOAD_DIR, ".chunks")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(CHUNK_DIR, exist_ok=True)
 MAX_UPLOAD_SIZE = 120 * 1024 * 1024
+
+# MinIO configuration (optional)
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "dtu-confessions")
+MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
+
+minio_client = None
+if MINIO_ENDPOINT and MINIO_ACCESS_KEY and MINIO_SECRET_KEY:
+    try:
+        minio_client = Minio(MINIO_ENDPOINT, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY, secure=MINIO_SECURE)
+        # ensure bucket exists
+        if not minio_client.bucket_exists(MINIO_BUCKET):
+            minio_client.make_bucket(MINIO_BUCKET)
+    except Exception:
+        minio_client = None
+
+
+class PresignRequest(BaseModel):
+    file_name: str
+    mime_type: str
+
+
+@router.post("/presign/{post_id}")
+def presign_upload(post_id: int, req: PresignRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if not minio_client:
+        raise HTTPException(status_code=500, detail="MinIO không được cấu hình trên server")
+
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết")
+    if post.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền thêm media vào bài viết này")
+
+    ext = os.path.splitext(req.file_name or "file")[1]
+    object_name = f"{uuid.uuid4()}{ext}"
+    # presign PUT URL
+    try:
+        url = minio_client.presigned_put_object(MINIO_BUCKET, object_name, expires=timedelta(minutes=15))
+    except S3Error as e:
+        raise HTTPException(status_code=500, detail=f"Không thể tạo presigned URL: {str(e)}")
+
+    return {
+        "upload_url": url,
+        "object_name": object_name,
+        "expires_in": 900
+    }
+
+
+@router.post("/presign/complete/{post_id}")
+def presign_complete(post_id: int, object_name: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if not minio_client:
+        raise HTTPException(status_code=500, detail="MinIO không được cấu hình trên server")
+
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết")
+    if post.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền thêm media vào bài viết này")
+
+    try:
+        stat = minio_client.stat_object(MINIO_BUCKET, object_name)
+    except S3Error:
+        raise HTTPException(status_code=404, detail="Không tìm thấy object trên storage")
+
+    mime_type = stat.content_type or "application/octet-stream"
+    media_type = _detect_media_type(mime_type)
+    if not media_type:
+        raise HTTPException(status_code=400, detail="File không được hỗ trợ")
+
+    # Build a public URL to store (best-effort)
+    scheme = "https" if MINIO_SECURE else "http"
+    file_url = f"{scheme}://{MINIO_ENDPOINT}/{MINIO_BUCKET}/{object_name}"
+
+    media = models.PostMedia(
+        post_id=post.id,
+        file_url=file_url,
+        file_name=object_name,
+        file_size=stat.size,
+        media_type=media_type,
+        mime_type=mime_type
+    )
+    db.add(media)
+    db.commit()
+    db.refresh(media)
+
+    return _success(data=_build_media_payload(media), message="Đăng ký media thành công")
+
 
 def _detect_media_type(mime_type: str):
     if mime_type.startswith("image/"):
