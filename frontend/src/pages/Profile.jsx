@@ -8,10 +8,17 @@ import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
 import { uploadProfileImage } from '../api/media';
 import { updateProfile } from '../api/auth';
+import { useParams } from 'react-router-dom';
 
 export function Profile() {
+    const { userId } = useParams();
     const { isDark } = useTheme();
-    const { user, refreshUser } = useAuth();
+    const { user: authUser, refreshUser } = useAuth();
+    
+    // Determine the user to show
+    const isOwner = !userId || parseInt(userId) === authUser?.id;
+    const [profileUser, setProfileUser] = useState(isOwner ? authUser : null);
+    
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -20,6 +27,7 @@ export function Profile() {
     const coverInputRef = useRef(null);
 
     const handleAvatarUpload = async (e) => {
+        if (!isOwner) return;
         const file = e.target.files[0];
         if (!file) return;
         setUploadingAvatar(true);
@@ -37,6 +45,7 @@ export function Profile() {
     };
 
     const handleCoverUpload = async (e) => {
+        if (!isOwner) return;
         const file = e.target.files[0];
         if (!file) return;
         setUploadingCover(true);
@@ -54,19 +63,32 @@ export function Profile() {
     };
 
     useEffect(() => {
-        const fetchMyPosts = async () => {
+        if (isOwner) {
+            setProfileUser(authUser);
+        } else if (userId) {
+            api.get(`/users/${userId}`).then(res => {
+                setProfileUser(res.data);
+            }).catch(err => {
+                toast.error(getApiErrorMessage(err, 'Không thể tải thông tin người dùng'));
+            });
+        }
+    }, [userId, authUser, isOwner]);
+
+    useEffect(() => {
+        const fetchPosts = async () => {
+            const targetId = isOwner ? authUser?.id : userId;
+            if (!targetId) return;
             try {
-                const res = await api.get('/posts/?skip=0&limit=100');
-                const myPosts = res.data.filter((p) => p.author_id === user?.id);
-                setPosts(myPosts);
+                const res = await api.get(`/posts/user/${targetId}?skip=0&limit=100`);
+                setPosts(res.data);
             } catch (err) {
-                toast.error(getApiErrorMessage(err, 'Không thể tải bài viết của bạn'));
+                toast.error(getApiErrorMessage(err, 'Không thể tải bài viết'));
             } finally {
                 setLoading(false);
             }
         };
-        if (user) fetchMyPosts();
-    }, [user]);
+        fetchPosts();
+    }, [userId, isOwner, authUser]);
 
     const cardStyle = {
         background: isDark ? '#1A1A24' : '#FFFFFF',
@@ -87,33 +109,43 @@ export function Profile() {
             >
                 {/* Cover */}
                 <div
-                    onClick={() => coverInputRef.current?.click()}
-                    className="h-24 sm:h-32 relative group cursor-pointer overflow-hidden"
-                    style={{ background: user?.cover_url ? `url(${user.cover_url}) center/cover` : 'linear-gradient(135deg, #C53030 0%, #E53E3E 50%, #FF6B6B 100%)' }}
+                    onClick={() => isOwner && coverInputRef.current?.click()}
+                    className={`h-24 sm:h-32 relative ${isOwner ? 'group cursor-pointer' : ''} overflow-hidden`}
+                    style={{ background: profileUser?.cover_url ? `url(${profileUser.cover_url}) center/cover` : 'linear-gradient(135deg, #C53030 0%, #E53E3E 50%, #FF6B6B 100%)' }}
                 >
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                        {uploadingCover ? <Loader2 className="animate-spin" /> : <Camera size={28} />}
-                    </div>
+                    {isOwner && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                            {uploadingCover ? <Loader2 className="animate-spin" /> : <Camera size={28} />}
+                        </div>
+                    )}
                 </div>
-                <input type="file" ref={coverInputRef} hidden accept="image/*" onChange={handleCoverUpload} />
+                {isOwner && <input type="file" ref={coverInputRef} hidden accept="image/*" onChange={handleCoverUpload} />}
 
                 {/* Profile Info */}
                 <div className="px-4 sm:px-5 pb-5">
                     <div className="flex items-end gap-3 sm:gap-4 -mt-10 mb-4 relative z-10">
                         <div
-                            onClick={() => avatarInputRef.current?.click()}
-                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold border-4 group cursor-pointer relative overflow-hidden bg-cover bg-center"
+                            onClick={() => {
+                                if (isOwner) {
+                                    avatarInputRef.current?.click();
+                                } else if (profileUser?.avatar_url) {
+                                    window.open(profileUser.avatar_url, '_blank');
+                                }
+                            }}
+                            className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold border-4 ${isOwner ? 'group cursor-pointer' : (profileUser?.avatar_url ? 'cursor-pointer' : '')} relative overflow-hidden bg-cover bg-center`}
                             style={{
-                                backgroundImage: user?.avatar_url ? `url(${user.avatar_url})` : 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)',
+                                backgroundImage: profileUser?.avatar_url ? `url(${profileUser.avatar_url})` : 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)',
                                 borderColor: isDark ? '#1A1A24' : '#FFFFFF',
                             }}
                         >
-                            {!user?.avatar_url && (user?.display_name || user?.student_id || 'U').charAt(0).toUpperCase()}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                {uploadingAvatar ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
-                            </div>
+                            {!profileUser?.avatar_url && (profileUser?.display_name || profileUser?.student_id || 'U').charAt(0).toUpperCase()}
+                            {isOwner && (
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    {uploadingAvatar ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
+                                </div>
+                            )}
                         </div>
-                        <input type="file" ref={avatarInputRef} hidden accept="image/*" onChange={handleAvatarUpload} />
+                        {isOwner && <input type="file" ref={avatarInputRef} hidden accept="image/*" onChange={handleAvatarUpload} />}
                     </div>
 
                     <h1
@@ -124,23 +156,23 @@ export function Profile() {
                             color: isDark ? '#F1F5F9' : '#1A1A2E',
                         }}
                     >
-                        {user?.display_name || user?.student_id}
+                        {profileUser?.display_name || profileUser?.student_id}
                     </h1>
 
                     <div className="flex flex-wrap items-center gap-4 mt-3">
                         <div className="flex items-center gap-1.5" style={{ color: isDark ? '#64748B' : '#94A3B8', fontSize: '0.82rem' }}>
                             <Hash size={14} />
-                            <span>{user?.student_id}</span>
+                            <span>{profileUser?.student_id}</span>
                         </div>
-                        {user?.email && (
+                        {profileUser?.email && (
                             <div className="flex items-center gap-1.5" style={{ color: isDark ? '#64748B' : '#94A3B8', fontSize: '0.82rem' }}>
                                 <Mail size={14} />
-                                <span>{user?.email}</span>
+                                <span>{profileUser?.email}</span>
                             </div>
                         )}
                         <div className="flex items-center gap-1.5" style={{ color: isDark ? '#64748B' : '#94A3B8', fontSize: '0.82rem' }}>
                             <Calendar size={14} />
-                            <span>Tham gia {new Date(user?.created_at).toLocaleDateString('vi-VN')}</span>
+                            <span>Tham gia {profileUser?.created_at ? new Date(profileUser.created_at).toLocaleDateString('vi-VN') : ''}</span>
                         </div>
                     </div>
 
@@ -174,7 +206,7 @@ export function Profile() {
                         color: isDark ? '#F1F5F9' : '#1A1A2E',
                     }}
                 >
-                    Bài viết của tôi
+                    {isOwner ? 'Bài viết của tôi' : `Bài viết của ${profileUser?.display_name || profileUser?.student_id || 'Người dùng'}`}
                 </h2>
             </motion.div>
 
@@ -184,7 +216,7 @@ export function Profile() {
                 </div>
             ) : posts.length === 0 ? (
                 <div className="text-center py-12" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
-                    <p style={{ fontFamily: 'Poppins, sans-serif', fontSize: '1rem' }}>Bạn chưa đăng confession nào</p>
+                    <p style={{ fontFamily: 'Poppins, sans-serif', fontSize: '1rem' }}>{isOwner ? 'Bạn chưa đăng confession nào' : 'Chưa có bài viết nào'}</p>
                 </div>
             ) : (
                 posts.map((post, index) => (
