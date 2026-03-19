@@ -12,15 +12,15 @@ export function AdminLayout() {
     const location = useLocation();
     
     const menuItems = [
-        { path: '/admin/reports', icon: BarChart3, label: 'Báo cáo' },
         { path: '/admin/users', icon: Users, label: 'Người dùng' },
         { path: '/admin/posts', icon: FileText, label: 'Bài viết' },
+        { path: '/admin/reports', icon: BarChart3, label: 'Báo cáo' },
     ];
 
     return (
-        <div className="min-h-screen flex" style={{ background: isDark ? '#13131A' : '#F8FAFC', color: isDark ? '#F1F5F9' : '#1A1A2E' }}>
+        <div className="min-h-screen flex flex-col md:flex-row" style={{ background: isDark ? '#13131A' : '#F8FAFC', color: isDark ? '#F1F5F9' : '#1A1A2E' }}>
             {/* Sidebar */}
-            <div className="w-64 flex-shrink-0 flex flex-col hidden md:flex" style={{ 
+            <div className="w-64 flex-shrink-0 flex-col hidden md:flex h-screen sticky top-0" style={{ 
                 background: isDark ? '#1A1A24' : '#FFFFFF',
                 borderRight: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.05)'
             }}>
@@ -81,11 +81,53 @@ export function AdminLayout() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto pb-20 md:pb-0">
                 <div className="p-4 sm:p-8 max-w-6xl mx-auto">
                     <Outlet />
                 </div>
             </div>
+
+            {/* Mobile Bottom Navigation */}
+            <nav
+                className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around px-2 py-3"
+                style={{
+                    background: isDark ? 'rgba(26, 26, 36, 0.98)' : 'rgba(255, 255, 255, 0.98)',
+                    backdropFilter: 'blur(20px)',
+                    borderTop: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.07)',
+                }}
+            >
+                {menuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+                    return (
+                        <button
+                            key={item.path}
+                            onClick={() => navigate(item.path)}
+                            className="p-2.5 rounded-xl transition-all duration-200"
+                            style={{ 
+                                color: isActive ? '#E53E3E' : isDark ? '#64748B' : '#94A3B8',
+                                background: isActive ? (isDark ? 'rgba(229, 62, 62, 0.15)' : 'rgba(229, 62, 62, 0.08)') : 'transparent'
+                            }}
+                        >
+                            <Icon size={22} />
+                        </button>
+                    );
+                })}
+                <button
+                    onClick={() => navigate('/')}
+                    className="p-2.5 rounded-xl transition-all duration-200"
+                    style={{ color: isDark ? '#64748B' : '#94A3B8' }}
+                >
+                    <ArrowLeft size={22} />
+                </button>
+                <button
+                    onClick={logout}
+                    className="p-2.5 rounded-xl transition-all duration-200"
+                    style={{ color: '#E53E3E' }}
+                >
+                    <LogOut size={22} />
+                </button>
+            </nav>
         </div>
     );
 }
