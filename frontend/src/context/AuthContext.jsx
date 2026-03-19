@@ -5,15 +5,19 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
     const isAuthenticated = !!user;
 
     const refreshUser = useCallback(async () => {
+        setLoading(true);
         try {
             const res = await api.get('/users/me');
             setUser(res.data);
         } catch (err) {
             // not authenticated or token expired
             setUser(null);
+        } finally {
+            setLoading(false);
         }
     }, []);
 
@@ -50,7 +54,7 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout, refreshUser }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, loading, login, register, logout, refreshUser }}>
             {children}
         </AuthContext.Provider>
     );
