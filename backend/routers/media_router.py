@@ -10,6 +10,7 @@ import uuid
 import traceback
 import shutil
 import mimetypes
+import json
 from datetime import timedelta
 from minio import Minio
 from minio.error import S3Error
@@ -34,10 +35,29 @@ minio_client = None
 if MINIO_ENDPOINT and MINIO_ACCESS_KEY and MINIO_SECRET_KEY:
     try:
         minio_client = Minio(MINIO_ENDPOINT, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY, secure=MINIO_SECURE)
-        # ensure bucket exists
         if not minio_client.bucket_exists(MINIO_BUCKET):
             minio_client.make_bucket(MINIO_BUCKET)
-    except Exception:
+            
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"AWS": "*"},
+                    "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
+                    "Resource": f"arn:aws:s3:::{MINIO_BUCKET}",
+                },
+                {
+                    "Effect": "Allow",
+                    "Principal": {"AWS": "*"},
+                    "Action": ["s3:GetObject"],
+                    "Resource": f"arn:aws:s3:::{MINIO_BUCKET}/*",
+                },
+            ],
+        }
+        minio_client.set_bucket_policy(MINIO_BUCKET, json.dumps(policy))
+    except Exception as e:
+        print("MinIO Config Error:", e)
         minio_client = None
 
 

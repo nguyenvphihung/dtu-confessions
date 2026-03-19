@@ -83,16 +83,22 @@ export function PostCard({ post, index = 0, onDelete }) {
     };
 
     const handleLike = async () => {
+        const prevLiked = liked;
+        const prevCount = likeCount;
+        setLiked(!liked);
+        setLikeCount((c) => c + (liked ? -1 : 1));
+        
         try {
-            if (liked) {
-                await api.delete(`/posts/${post.id}/like`);
-                setLikeCount((c) => c - 1);
-            } else {
-                await api.post(`/posts/${post.id}/like`);
-                setLikeCount((c) => c + 1);
+            const res = await api.post(`/posts/${post.id}/like`);
+            const data = res.data?.data;
+            if (data) {
+                if (data.status === 'liked') setLiked(true);
+                else if (data.status === 'unliked') setLiked(false);
+                if (typeof data.like_count === 'number') setLikeCount(data.like_count);
             }
-            setLiked(!liked);
         } catch (err) {
+            setLiked(prevLiked);
+            setLikeCount(prevCount);
             toast.error(getApiErrorMessage(err, 'Không thể tương tác bài viết'));
         }
     };

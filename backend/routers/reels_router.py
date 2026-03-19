@@ -60,12 +60,11 @@ def get_daily_reels(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_optional_user)
 ):
-    target_date = datetime.utcnow().date()
     if date:
         try:
             target_date = datetime.strptime(date, "%Y-%m-%d").date()
         except ValueError:
-            raise HTTPException(status_code=400, detail="Định dạng ngày không hợp lệ")
+            pass
 
     view_subq = db.query(func.count(models.ReelView.id)).filter(
         models.ReelView.media_id == models.PostMedia.id
@@ -91,8 +90,7 @@ def get_daily_reels(
     ).join(models.Post, models.Post.id == models.PostMedia.post_id).options(
         joinedload(models.PostMedia.post).joinedload(models.Post.author)
     ).filter(
-        models.PostMedia.media_type == "video",
-        func.date(models.PostMedia.created_at) == target_date
+        models.PostMedia.media_type == "video"
     ).order_by(models.PostMedia.created_at.desc())
 
     if current_user:
@@ -115,7 +113,6 @@ def get_daily_reels(
     return {
         "success": True,
         "data": {
-            "date": str(target_date),
             "items": items,
             "skip": skip,
             "limit": limit,
@@ -290,12 +287,16 @@ def get_reel_thumbnail(media_id: int, db: Session = Depends(get_db)):
     if media.mime_type not in SUPPORTED_VIDEO_MIME:
         raise HTTPException(status_code=400, detail="Định dạng video không hỗ trợ tạo thumbnail")
 
-    source_path = os.path.join(UPLOADS_DIR, os.path.basename(media.file_url))
-    if not os.path.exists(source_path):
-        raise HTTPException(status_code=404, detail="Không tìm thấy file video")
+    is_remote = media.file_url.startswith("http://") or media.file_url.startswith("https://")
+    if is_remote:
+        source_path = media.file_url
+        file_ready = True
+    else:
+        source_path = os.path.join(UPLOADS_DIR, os.path.basename(media.file_url))
+        file_ready = os.path.exists(source_path)
 
     thumb_path = os.path.join(THUMB_DIR, f"{media_id}.jpg")
-    if not os.path.exists(thumb_path):
+    if not os.path.exists(thumb_path) and file_ready:
         ffmpeg_bin = shutil.which("ffmpeg")
         if ffmpeg_bin:
             try:
@@ -317,6 +318,26 @@ def get_reel_thumbnail(media_id: int, db: Session = Depends(get_db)):
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
+            except Exception:
+                pass
+                
+        if not os.path.exists(thumb_path):
+            try:
+                import cv2
+                cap = cv2.VideoCapture(source_path)
+                if cap.isOpened():
+                    cap.set(cv2.CAP_PROP_POS_MSEC, 700)
+                    ret, frame = cap.read()
+                    if not ret:
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        ret, frame = cap.read()
+                    if ret:
+                        h, w = frame.shape[:2]
+                        if w > 0:
+                            new_h = int(h * (480 / w))
+                            resized = cv2.resize(frame, (480, new_h))
+                            cv2.imwrite(thumb_path, resized)
+                cap.release()
             except Exception:
                 pass
 
