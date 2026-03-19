@@ -8,14 +8,6 @@ Nền tảng confession ẩn danh hiện đại dành cho sinh viên Đại họ
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
-## ✨ Tính năng nổi bật
-
-- 🏠 **Confessions Feed**: Đăng bài ản danh, hỗ trợ đính kèm hình ảnh và video chất lượng cao qua MinIO.
-- 🎥 **DTU Reels**: Trải nghiệm xem video ngắn cuộn liên tục (TikTok style) với tương tác Like/Comment đồng bộ.
-- 🔄 **Smart Sharing**: Chia sẻ bài viết yêu thích về trang cá nhân với tùy chọn chế độ Chế độ riêng tư (Private) hoặc Công khai (Public).
-- 👤 **Dynamic Profile**: Trang cá nhân tùy biến ảnh đại diện/ảnh bìa, quản lý dòng thời gian cá nhân và các bài chia sẻ.
-- 📊 **Admin Dashboard**: Hệ thống quản trị chuyên sâu dành cho người điều hành với biểu đồ thống kê (Recharts) trực quan.
-- 🌓 **Theme Mode**: Tùy chọn giao diện Sáng/Tối (Light/Dark mode) tối ưu cho trải nghiệm người dùng.
 
 ## 🛠️ Tech Stack
 
