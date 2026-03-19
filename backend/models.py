@@ -30,9 +30,12 @@ class Post(Base):
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     content = Column(Text, nullable=False)
     is_anonymous = Column(Boolean, default=False)
+    is_private = Column(Boolean, default=False)
+    shared_post_id = Column(Integer, ForeignKey("posts.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     author = relationship("User", back_populates="posts")
+    shared_post = relationship("Post", remote_side=[id], backref="shares")
     comments = relationship("Comment", back_populates="post", order_by="Comment.created_at", cascade="all, delete-orphan")
     media = relationship("PostMedia", back_populates="post", cascade="all, delete-orphan")
     interactions = relationship("Interaction", back_populates="post", cascade="all, delete-orphan")

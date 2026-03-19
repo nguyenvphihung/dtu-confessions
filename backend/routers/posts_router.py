@@ -48,14 +48,20 @@ def __format_post_response(post: models.Post, like_count: int, comment_count: in
         "id": post.id,
         "author_id": post.author_id,
         "content": post.content,
-        "is_anonymous": post.is_anonymous,
+        "is_anonymous": bool(post.is_anonymous),
+        "is_private": bool(post.is_private),
         "created_at": post.created_at,
         "like_count": like_count,
         "comment_count": comment_count,
         "user_liked": user_liked,
         "media": media_list,
         "author": None,
+        "shared_post_id": getattr(post, 'shared_post_id', None),
+        "shared_post": None
     }
+
+    if getattr(post, 'shared_post', None) is not None:
+        result["shared_post"] = __format_post_response(post.shared_post, 0, 0, False)
 
     if not post.is_anonymous and post.author:
         result["author"] = {
@@ -77,7 +83,9 @@ def create_post(post_data: schemas.PostCreate, db: Session = Depends(get_db), cu
     new_post = models.Post(
         author_id = current_user.id,
         content = post_data.content,
-        is_anonymous = post_data.is_anonymous
+        is_anonymous = post_data.is_anonymous,
+        is_private = post_data.is_private,
+        shared_post_id = post_data.shared_post_id
     )
     db.add(new_post)
     db.commit()
@@ -96,8 +104,25 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
         models.Comment.post_id == models.Post.id
     ).correlate(models.Post).as_scalar()
 
-    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count")).options(joinedload(models.Post.author), joinedload(models.Post.media))
+    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count")).options(
+        joinedload(models.Post.author), 
+        joinedload(models.Post.media),
+        joinedload(models.Post.shared_post).joinedload(models.Post.author),
+        joinedload(models.Post.shared_post).joinedload(models.Post.media)
+    )
     
+    if current_user:
+        query = query.filter(or_(
+            models.Post.is_private == False,
+            models.Post.is_private.is_(None),
+            models.Post.author_id == current_user.id
+        ))
+    else:
+        query = query.filter(or_(
+            models.Post.is_private == False,
+            models.Post.is_private.is_(None)
+        ))
+
     if current_user:
         user_liked_subq = db.query(models.Interaction.id).filter(
             models.Interaction.post_id == models.Post.id,
@@ -128,6 +153,55 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
         response.append(__format_post_response(post, like_count, comment_count, user_liked))
     return response
 
+@router.get("/user/{user_id}", response_model=List[schemas.PostResponse])
+def get_user_posts(user_id: int, skip: int = 0, limit: int = 20, db: Session = Depends(get_db), current_user: models.User = Depends(get_optional_user)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+
+    likes_subq = db.query(func.count(models.Interaction.id)).filter(
+        models.Interaction.post_id == models.Post.id,
+        models.Interaction.interaction_type == "like"
+    ).correlate(models.Post).as_scalar()
+
+    comments_subq = db.query(func.count(models.Comment.id)).filter(
+        models.Comment.post_id == models.Post.id
+    ).correlate(models.Post).as_scalar()
+
+    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count")).options(
+        joinedload(models.Post.author), 
+        joinedload(models.Post.media),
+        joinedload(models.Post.shared_post).joinedload(models.Post.author),
+        joinedload(models.Post.shared_post).joinedload(models.Post.media)
+    ).filter(models.Post.author_id == user_id)
+    
+    # Hide anonymous and private posts from others
+    if not current_user or current_user.id != user_id:
+        query = query.filter(
+            models.Post.is_anonymous == False,
+            or_(models.Post.is_private == False, models.Post.is_private.is_(None))
+        )
+
+    if current_user:
+        user_liked_subq = db.query(models.Interaction.id).filter(
+            models.Interaction.post_id == models.Post.id,
+            models.Interaction.user_id == current_user.id,
+            models.Interaction.interaction_type == "like"
+        ).correlate(models.Post).exists()
+        query = query.add_columns(user_liked_subq.label("user_liked"))
+
+    results = query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+
+    response = []
+    for row in results:
+        if current_user:
+            post, like_count, comment_count, user_liked = row
+        else:
+            post, like_count, comment_count = row
+            user_liked = False
+        response.append(__format_post_response(post, like_count, comment_count, user_liked))
+    return response
+
 @router.get("/{post_id}", response_model=schemas.PostResponse)
 def get_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_optional_user)):
     likes_subq = db.query(func.count(models.Interaction.id)).filter(
@@ -139,7 +213,12 @@ def get_post(post_id: int, db: Session = Depends(get_db), current_user: models.U
         models.Comment.post_id == models.Post.id
     ).correlate(models.Post).scalar_subquery()
 
-    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count")).options(joinedload(models.Post.author), joinedload(models.Post.media)).filter(models.Post.id == post_id)
+    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count")).options(
+        joinedload(models.Post.author), 
+        joinedload(models.Post.media),
+        joinedload(models.Post.shared_post).joinedload(models.Post.author),
+        joinedload(models.Post.shared_post).joinedload(models.Post.media)
+    ).filter(models.Post.id == post_id)
 
     if current_user:
         user_liked_subq = db.query(models.Interaction.id).filter(
@@ -152,6 +231,10 @@ def get_post(post_id: int, db: Session = Depends(get_db), current_user: models.U
     row = query.first()
     if not row:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài post")
+    
+    post = row[0]
+    if getattr(post, 'is_private', False) and (not current_user or current_user.id != post.author_id):
+        raise HTTPException(status_code=403, detail="Bài viết này là riêng tư")
     
     if current_user:
         post, like_count, comment_count, user_liked = row

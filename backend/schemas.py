@@ -54,18 +54,23 @@ class PostMediaResponse(BaseModel):
 class PostCreate(BaseModel):
     content: str
     is_anonymous: bool = False
+    is_private: bool = False
+    shared_post_id: Optional[int] = None
 
 class PostResponse(BaseModel):
     id: int
     author_id: int
     content: str
     is_anonymous: bool = False
+    is_private: bool = False
+    shared_post_id: Optional[int] = None
     created_at: datetime
     author: Optional[UserResponse] = None
     like_count: int = 0
     comment_count: int = 0
     user_liked: bool = False
     media: List[PostMediaResponse] = []
+    shared_post: Optional["PostResponse"] = None
 
     class Config:
         from_attributes = True
