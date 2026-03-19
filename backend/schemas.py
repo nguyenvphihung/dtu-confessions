@@ -15,10 +15,19 @@ class UserResponse(BaseModel):
     email: Optional[str] = None
     role: str
     is_banned: bool
+    avatar_url: Optional[str] = None
+    cover_url: Optional[str] = None
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class UserUpdate(BaseModel):
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    cover_url: Optional[str] = None
+
+
 
 class Token(BaseModel):
     access_token: str

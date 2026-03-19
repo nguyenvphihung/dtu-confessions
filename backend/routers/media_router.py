@@ -195,9 +195,16 @@ async def upload_media(post_id: int, file: UploadFile = File(...), db: Session =
         finally:
             await file.close()
 
+        file_url = f"/api/media/files/{unique_name}"
+        if minio_client:
+            minio_client.fput_object(MINIO_BUCKET, unique_name, file_path, content_type=mime_type)
+            scheme = "https" if MINIO_SECURE else "http"
+            file_url = f"{scheme}://{MINIO_ENDPOINT}/{MINIO_BUCKET}/{unique_name}"
+            os.remove(file_path)
+
         media = models.PostMedia(
             post_id = post.id,
-            file_url=f"/api/media/files/{unique_name}",
+            file_url=file_url,
             file_name=file.filename or "file",
             file_size=total_size,
             media_type=media_type,
@@ -278,9 +285,16 @@ async def upload_media_chunk(
                 if total_size > MAX_UPLOAD_SIZE:
                     raise HTTPException(status_code=400, detail="File vượt quá dung lượng cho phép")
 
+        file_url = f"/api/media/files/{unique_name}"
+        if minio_client:
+            minio_client.fput_object(MINIO_BUCKET, unique_name, final_path, content_type=mime_type)
+            scheme = "https" if MINIO_SECURE else "http"
+            file_url = f"{scheme}://{MINIO_ENDPOINT}/{MINIO_BUCKET}/{unique_name}"
+            os.remove(final_path)
+
         media = models.PostMedia(
             post_id=post.id,
-            file_url=f"/api/media/files/{unique_name}",
+            file_url=file_url,
             file_name=file_name or "file",
             file_size=total_size,
             media_type=media_type,
@@ -302,6 +316,40 @@ async def upload_media_chunk(
             shutil.rmtree(upload_temp_dir, ignore_errors=True)
         if total_size > MAX_UPLOAD_SIZE and os.path.exists(final_path):
             os.remove(final_path)
+
+@router.post("/upload-profile", status_code=status.HTTP_201_CREATED)
+async def upload_profile_image(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
+    mime_type = file.content_type or ""
+    if not mime_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ file ảnh")
+        
+    ext = os.path.splitext(file.filename or "file")[1]
+    unique_name = f"profile-{uuid.uuid4()}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_name)
+    
+    try:
+        with open(file_path, "wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+    finally:
+        await file.close()
+        
+    if minio_client:
+        try:
+            minio_client.fput_object(MINIO_BUCKET, unique_name, file_path, content_type=mime_type)
+            scheme = "https" if MINIO_SECURE else "http"
+            file_url = f"{scheme}://{MINIO_ENDPOINT}/{MINIO_BUCKET}/{unique_name}"
+            os.remove(file_path)
+            return _success(data={"file_url": file_url}, message="Upload ảnh thành công")
+        except Exception as e:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(status_code=500, detail=f"Lỗi MinIO: {str(e)}")
+            
+    return _success(data={"file_url": f"/api/media/files/{unique_name}"}, message="Upload ảnh thành công")
 
 @router.get("/files/{filename}")
 async def serve_file(filename: str, request: Request):

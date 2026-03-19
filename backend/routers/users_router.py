@@ -24,3 +24,21 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy user")
     return user
+
+@router.put("/me", response_model=schemas.UserResponse)
+def update_my_profile(
+    user_update: schemas.UserUpdate, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    if user_update.display_name is not None:
+        current_user.display_name = user_update.display_name
+    if user_update.avatar_url is not None:
+        current_user.avatar_url = user_update.avatar_url
+    if user_update.cover_url is not None:
+        current_user.cover_url = user_update.cover_url
+        
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return current_user

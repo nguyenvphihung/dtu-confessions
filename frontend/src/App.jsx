@@ -9,6 +9,7 @@ import { Register } from './pages/Register';
 import { Feed } from './pages/Feed';
 import { Profile } from './pages/Profile';
 import { Admin } from './pages/Admin';
+import { Settings } from './pages/Settings';
 import Reels from './pages/Reels';
 
 function ProtectedRoute({ children }) {
@@ -33,6 +34,7 @@ function App() {
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route index element={<Feed />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="settings" element={<Settings />} />
               <Route path="admin" element={<Admin />} />
             </Route>
             <Route path="/reels" element={<ProtectedRoute><Reels /></ProtectedRoute>} />

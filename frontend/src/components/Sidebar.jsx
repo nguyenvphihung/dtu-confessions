@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, User, Sun, Moon, PenSquare, LogOut, ShieldCheck, Clapperboard } from 'lucide-react';
+import { Home, User, Sun, Moon, PenSquare, LogOut, ShieldCheck, Clapperboard, Settings as SettingsIcon } from 'lucide-react';
 import dtuLogo from '../assets/dtu_logo.png';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ const navItems = [
     { to: '/', icon: Home, label: 'Trang chủ' },
     { to: '/reels', icon: Clapperboard, label: 'Reels' },
     { to: '/profile', icon: User, label: 'Trang cá nhân' },
+    { to: '/settings', icon: SettingsIcon, label: 'Cài đặt' },
 ];
 
 const adminNavItem = { to: '/admin', icon: ShieldCheck, label: 'Quản lý' };
@@ -184,6 +185,7 @@ export function Sidebar() {
                     { to: '/', icon: Home },
                     { to: '/reels', icon: Clapperboard },
                     { to: '/profile', icon: User },
+                    { to: '/settings', icon: SettingsIcon },
                     ...(user?.role === 'admin' ? [{ to: '/admin', icon: ShieldCheck }] : []),
                 ].map(({ to, icon: Icon }) => (
                     <NavLink

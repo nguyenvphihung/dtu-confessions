@@ -1,17 +1,57 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { PostCard } from '../components/PostCard';
-import { Calendar, Mail, Hash } from 'lucide-react';
+import { Calendar, Mail, Hash, Camera, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
+import { uploadProfileImage } from '../api/media';
+import { updateProfile } from '../api/auth';
 
 export function Profile() {
     const { isDark } = useTheme();
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [uploadingCover, setUploadingCover] = useState(false);
+    const avatarInputRef = useRef(null);
+    const coverInputRef = useRef(null);
+
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploadingAvatar(true);
+        try {
+            const uploadRes = await uploadProfileImage(file);
+            await updateProfile({ avatar_url: uploadRes.data.data.file_url });
+            await refreshUser();
+            toast.success('Cập nhật avatar thành công');
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, 'Lỗi cập nhật avatar'));
+        } finally {
+            setUploadingAvatar(false);
+            e.target.value = '';
+        }
+    };
+
+    const handleCoverUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploadingCover(true);
+        try {
+            const uploadRes = await uploadProfileImage(file);
+            await updateProfile({ cover_url: uploadRes.data.data.file_url });
+            await refreshUser();
+            toast.success('Cập nhật ảnh bìa thành công');
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, 'Lỗi cập nhật ảnh bìa'));
+        } finally {
+            setUploadingCover(false);
+            e.target.value = '';
+        }
+    };
 
     useEffect(() => {
         const fetchMyPosts = async () => {
@@ -47,22 +87,33 @@ export function Profile() {
             >
                 {/* Cover */}
                 <div
-                    className="h-24 sm:h-32 relative"
-                    style={{ background: 'linear-gradient(135deg, #C53030 0%, #E53E3E 50%, #FF6B6B 100%)' }}
-                />
+                    onClick={() => coverInputRef.current?.click()}
+                    className="h-24 sm:h-32 relative group cursor-pointer overflow-hidden"
+                    style={{ background: user?.cover_url ? `url(${user.cover_url}) center/cover` : 'linear-gradient(135deg, #C53030 0%, #E53E3E 50%, #FF6B6B 100%)' }}
+                >
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                        {uploadingCover ? <Loader2 className="animate-spin" /> : <Camera size={28} />}
+                    </div>
+                </div>
+                <input type="file" ref={coverInputRef} hidden accept="image/*" onChange={handleCoverUpload} />
 
                 {/* Profile Info */}
                 <div className="px-4 sm:px-5 pb-5">
                     <div className="flex items-end gap-3 sm:gap-4 -mt-10 mb-4 relative z-10">
                         <div
-                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold border-4"
+                            onClick={() => avatarInputRef.current?.click()}
+                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold border-4 group cursor-pointer relative overflow-hidden bg-cover bg-center"
                             style={{
-                                background: 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)',
+                                backgroundImage: user?.avatar_url ? `url(${user.avatar_url})` : 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)',
                                 borderColor: isDark ? '#1A1A24' : '#FFFFFF',
                             }}
                         >
-                            {(user?.display_name || user?.student_id || 'U').charAt(0).toUpperCase()}
+                            {!user?.avatar_url && (user?.display_name || user?.student_id || 'U').charAt(0).toUpperCase()}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                {uploadingAvatar ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
+                            </div>
                         </div>
+                        <input type="file" ref={avatarInputRef} hidden accept="image/*" onChange={handleAvatarUpload} />
                     </div>
 
                     <h1
