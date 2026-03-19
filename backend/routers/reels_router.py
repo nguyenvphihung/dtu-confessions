@@ -192,14 +192,45 @@ def track_analytics(
         ).scalar() or 0
         return {"success": True, "data": {"status": "like", "like_count": int(likes), "share_count": int(shares)}}
 
-    interaction = models.ReelInteraction(
-        media_id=media_id,
-        user_id=current_user.id,
-        interaction_type="watch" if action == "watch" else action,
-        watch_time=max(0, payload.watch_time)
-    )
-    db.add(interaction)
-    db.commit()
+    # For reel interactions, avoid inserting duplicate rows for the same (user,media,action).
+    # - For 'watch' actions: accumulate watch_time on existing record if present.
+    # - For 'share' actions: create once per user/media (no duplicates).
+    itype = "watch" if action == "watch" else action
+    existing = db.query(models.ReelInteraction).filter(
+        models.ReelInteraction.media_id == media_id,
+        models.ReelInteraction.user_id == current_user.id,
+        models.ReelInteraction.interaction_type == itype
+    ).first()
+
+    if itype == "watch":
+        if existing:
+            # accumulate watch time
+            existing.watch_time = (existing.watch_time or 0) + max(0, payload.watch_time)
+            db.add(existing)
+            db.commit()
+        else:
+            interaction = models.ReelInteraction(
+                media_id=media_id,
+                user_id=current_user.id,
+                interaction_type=itype,
+                watch_time=max(0, payload.watch_time)
+            )
+            db.add(interaction)
+            db.commit()
+    else:
+        # share or other non-like interactions: create if not exists
+        if existing:
+            # already recorded; no-op
+            pass
+        else:
+            interaction = models.ReelInteraction(
+                media_id=media_id,
+                user_id=current_user.id,
+                interaction_type=itype,
+                watch_time=max(0, payload.watch_time)
+            )
+            db.add(interaction)
+            db.commit()
     likes = db.query(func.count(models.Interaction.id)).filter(
         models.Interaction.post_id == media.post_id,
         models.Interaction.interaction_type == "like"

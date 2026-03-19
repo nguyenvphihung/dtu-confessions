@@ -217,7 +217,29 @@ export default function Reels() {
             if (idx >= reels.length - 2 && hasMore && !loading) load(skip, true);
         };
         root.addEventListener('scroll', handler, { passive: true });
-        return () => root.removeEventListener('scroll', handler);
+
+        // Wheel handling: jump one item per wheel gesture to avoid incremental partial scrolls.
+        let wheelCooldown = false;
+        const onWheel = (e) => {
+            if (wheelCooldown) return;
+            const delta = e.deltaY;
+            if (Math.abs(delta) < 20) return; // ignore tiny scrolls
+            e.preventDefault();
+            wheelCooldown = true;
+            setTimeout(() => (wheelCooldown = false), 240);
+            const current = Math.round(root.scrollTop / window.innerHeight);
+            let next = current + (delta > 0 ? 1 : -1);
+            next = Math.max(0, Math.min(next, reels.length - 1));
+            root.scrollTo({ top: next * window.innerHeight, behavior: 'smooth' });
+            setActiveIndex(next);
+            if (next >= reels.length - 2 && hasMore && !loading) load(skip, true);
+        };
+        root.addEventListener('wheel', onWheel, { passive: false });
+
+        return () => {
+            root.removeEventListener('scroll', handler);
+            root.removeEventListener('wheel', onWheel);
+        };
     }, [reels.length, skip, hasMore, loading]);
 
     const handleLike = (mediaId) => trackReelAnalytics(mediaId, { action: 'like' });
