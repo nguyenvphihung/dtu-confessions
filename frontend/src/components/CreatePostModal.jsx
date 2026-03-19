@@ -12,7 +12,7 @@ import { validateVideoOutput } from '../utils/videoEditor';
 const CHUNK_SIZE = 2 * 1024 * 1024;
 const CHUNK_THRESHOLD = 8 * 1024 * 1024;
 
-export function CreatePostModal({ open, onClose, onPostCreated }) {
+export function CreatePostModal({ open, onClose, onPostCreated, sharedPost }) {
     const { isDark } = useTheme();
     const { user } = useAuth();
     const [content, setContent] = useState('');
@@ -89,7 +89,11 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
         setLoading(true);
         try {
             // 1. Tạo post
-            const postRes = await api.post('/posts/', { content, is_anonymous: isAnonymous });
+            const postPayload = { content, is_anonymous: isAnonymous };
+            if (sharedPost) {
+                postPayload.shared_post_id = sharedPost.id;
+            }
+            const postRes = await api.post('/posts/', postPayload);
             const postId = postRes.data.id;
 
             for (const f of files) {
@@ -260,6 +264,23 @@ export function CreatePostModal({ open, onClose, onPostCreated }) {
                                                 )}
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+                                
+                                {/* Shared Post Preview */}
+                                {sharedPost && (
+                                    <div className="mt-4 p-3 rounded-xl border" style={{
+                                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                        background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
+                                    }}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '0.8rem', color: isDark ? '#F1F5F9' : '#1A1A2E' }}>
+                                                {sharedPost.is_anonymous ? 'Ẩn danh' : (sharedPost.author?.display_name || sharedPost.author?.student_id || 'Người dùng')}
+                                            </span>
+                                        </div>
+                                        <p style={{ fontSize: '0.85rem', color: isDark ? '#CBD5E1' : '#475569', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                            {sharedPost.content}
+                                        </p>
                                     </div>
                                 )}
                             </div>

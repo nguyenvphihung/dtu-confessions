@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Heart, MessageCircle, MoreHorizontal, UserCircle, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, UserCircle, Trash2, Share2, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { CommentSection } from './CommentSection';
+import { CreatePostModal } from './CreatePostModal';
 import ImageModal from './ImageModal';
 import { VideoModal } from './VideoModal';
 import { AutoPlayVideo } from './AutoPlayVideo';
@@ -31,6 +33,7 @@ const timeAgo = (dateString) => {
 };
 
 export function PostCard({ post, index = 0, onDelete }) {
+    const navigate = useNavigate();
     const { isDark } = useTheme();
     const { user } = useAuth();
     const [liked, setLiked] = useState(post.user_liked || false);
@@ -41,6 +44,7 @@ export function PostCard({ post, index = 0, onDelete }) {
     const [showImageModal, setShowImageModal] = useState(false);
     const [modalStartIndex, setModalStartIndex] = useState(0);
     const [activeVideo, setActiveVideo] = useState(null);
+    const [showShareModal, setShowShareModal] = useState(false);
 
     // Dropdown state
     const [showMenu, setShowMenu] = useState(false);
@@ -124,7 +128,14 @@ export function PostCard({ post, index = 0, onDelete }) {
         >
             {/* Header */}
             <div className="flex items-start justify-between px-3 sm:px-5 pt-4 sm:pt-5 pb-3">
-                <div className="flex items-start gap-3">
+                <div 
+                    className={`flex items-start gap-3 ${!isAnonymous ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                    onClick={() => {
+                        if (!isAnonymous && post.author_id) {
+                            navigate(`/profile/${post.author_id}`);
+                        }
+                    }}
+                >
                     <div className="relative flex-shrink-0">
                         {isAnonymous ? (
                             <div
@@ -164,6 +175,11 @@ export function PostCard({ post, index = 0, onDelete }) {
                                 >
                                     Ẩn danh
                                 </span>
+                            )}
+                            {post.is_private && (
+                                <div className="flex items-center justify-center p-1 rounded-full" style={{ background: 'rgba(100, 116, 139, 0.1)', color: isDark ? '#94A3B8' : '#64748B' }} title="Chỉ mình tôi">
+                                    <Lock size={12} strokeWidth={2} />
+                                </div>
                             )}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
@@ -236,6 +252,38 @@ export function PostCard({ post, index = 0, onDelete }) {
                     </button>
                 )}
             </div>
+
+            {/* Shared Post Embedding */}
+            {post.shared_post && (
+                <div className="mx-3 sm:mx-5 mb-3 p-3 sm:p-4 rounded-xl border" style={{
+                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                    background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
+                }}>
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                             style={{ background: post.shared_post.is_anonymous ? (isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0') : 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)' }}>
+                            {post.shared_post.is_anonymous ? '🎭' : (post.shared_post.author?.display_name || post.shared_post.author?.student_id || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '0.85rem', color: isDark ? '#F1F5F9' : '#1A1A2E' }}>
+                            {post.shared_post.is_anonymous ? 'Ẩn danh' : (post.shared_post.author?.display_name || post.shared_post.author?.student_id || 'Người dùng')}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: isDark ? '#475569' : '#94A3B8' }}>
+                            {timeAgo(post.shared_post.created_at)}
+                        </span>
+                    </div>
+                    <p style={{
+                        fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', lineHeight: 1.5,
+                        color: isDark ? '#CBD5E1' : '#374151', whiteSpace: 'pre-line'
+                    }}>
+                        {post.shared_post.content}
+                    </p>
+                    {post.shared_post.media && post.shared_post.media.length > 0 && (
+                        <div className="mt-2 text-xs" style={{ color: '#E53E3E', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>
+                            [Đính kèm {post.shared_post.media.length} media]
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Media */}
             {post.media && post.media.length > 0 && (
@@ -312,6 +360,51 @@ export function PostCard({ post, index = 0, onDelete }) {
                         </span>
                     </motion.button>
                 </div>
+
+                <motion.button
+                    whileTap={{ scale: 0.85 }}
+                    whileHover={{ scale: 1.05 }}
+                    onClick={() => {
+                        const originalPostId = post.shared_post ? post.shared_post.id : post.id;
+                        Swal.fire({
+                            title: 'Chia sẻ bài viết này?',
+                            text: "Bài viết chia sẻ sẽ hiển thị trên trang cá nhân của bạn.",
+                            icon: 'question',
+                            showDenyButton: true,
+                            showCancelButton: true,
+                            confirmButtonText: 'Công khai',
+                            denyButtonText: 'Chỉ mình tôi',
+                            cancelButtonText: 'Hủy bỏ',
+                            confirmButtonColor: '#E53E3E',
+                            denyButtonColor: '#64748B'
+                        }).then(async (result) => {
+                            if (result.isConfirmed || result.isDenied) {
+                                try {
+                                    await api.post('/posts/', {
+                                        content: " ", 
+                                        is_anonymous: false,
+                                        is_private: result.isDenied,
+                                        shared_post_id: originalPostId
+                                    });
+                                    toast.success('Chia sẻ bài viết thành công!');
+                                } catch (err) {
+                                    toast.error(getApiErrorMessage(err, 'Lỗi chia sẻ bài viết'));
+                                }
+                            }
+                        });
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl cursor-pointer"
+                    style={{
+                        color: isDark ? '#64748B' : '#94A3B8',
+                        background: 'transparent',
+                        transition: 'color 0.2s ease, background 0.2s ease',
+                    }}
+                >
+                    <Share2 size={17} strokeWidth={1.8} />
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '0.82rem' }}>
+                        Chia sẻ
+                    </span>
+                </motion.button>
             </div>
 
             {/* Comments */}
