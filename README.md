@@ -1,6 +1,6 @@
 # 🎓 DTU Confession
 
-Nền tảng confession ẩn danh dành cho sinh viên Đại học Duy Tân (DTU). Chia sẻ tâm sự, câu chuyện và kết nối cộng đồng.
+Nền tảng confession ẩn danh hiện đại dành cho sinh viên Đại học Duy Tân (DTU). Chia sẻ tâm sự, video Reels bí mật và kết nối cộng đồng một cách chuyên nghiệp.
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
@@ -8,146 +8,88 @@ Nền tảng confession ẩn danh dành cho sinh viên Đại học Duy Tân (DT
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
+## ✨ Tính năng nổi bật
+
+- 🏠 **Confessions Feed**: Đăng bài ản danh, hỗ trợ đính kèm hình ảnh và video chất lượng cao qua MinIO.
+- 🎥 **DTU Reels**: Trải nghiệm xem video ngắn cuộn liên tục (TikTok style) với tương tác Like/Comment đồng bộ.
+- 🔄 **Smart Sharing**: Chia sẻ bài viết yêu thích về trang cá nhân với tùy chọn chế độ Chế độ riêng tư (Private) hoặc Công khai (Public).
+- 👤 **Dynamic Profile**: Trang cá nhân tùy biến ảnh đại diện/ảnh bìa, quản lý dòng thời gian cá nhân và các bài chia sẻ.
+- 📊 **Admin Dashboard**: Hệ thống quản trị chuyên sâu dành cho người điều hành với biểu đồ thống kê (Recharts) trực quan.
+- 🌓 **Theme Mode**: Tùy chọn giao diện Sáng/Tối (Light/Dark mode) tối ưu cho trải nghiệm người dùng.
+
 ## 🛠️ Tech Stack
 
 | Layer | Công nghệ |
 |-------|-----------|
-| **Frontend** | React 19 + Vite 7 + Tailwind CSS v4 + Motion |
-| **Backend** | FastAPI + SQLAlchemy + Pydantic |
+| **Frontend** | React 19 + Vite 7 + Tailwind CSS v4 + Motion (Framer) |
+| **Backend** | FastAPI + SQLAlchemy + Pydantic + Alembic |
 | **Database** | PostgreSQL 15 |
-| **Auth** | JWT (python-jose + bcrypt) |
-| **Deploy** | Docker + Nginx |
+| **Object Storage** | MinIO (Phục vụ lưu trữ Avatar, Media) |
+| **Visualization** | Recharts (Dashboard báo cáo) |
+| **Auth** | JWT (HttpOnly Cookies Security) |
 
-## 🚀 Chạy với Docker
+## 🚀 Cài đặt dự án
 
-Cài đặt [Docker Desktop](https://www.docker.com/products/docker-desktop/),.
+### 1. Chạy với Docker (Khuyên dùng)
+
+Đảm bảo bạn đã cài [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ```bash
 # 1. Clone project
 git clone https://github.com/nguyenvphihung/dtu-confessions.git
 cd dtu-confessions
 
-# 2. Tạo file cấu hình backend
+# 2. Tạo cấu hình .env (Backend & MinIO)
 cp backend/.env.example backend/.env
 
-# 3. Chạy
+# 3. Khởi động toàn bộ hệ thống (Postgres, MinIO, Backend, Frontend)
 docker-compose up --build
 ```
+Truy cập:
+- **Frontend**: http://localhost:5173
+- **API Docs**: http://localhost:8000/docs
+- **MinIO Console**: http://localhost:9001
 
-Truy cập **http://localhost:3000** — Đăng ký tài khoản và bắt đầu sử dụng!
+### 2. Chạy Development (Local)
 
-> **Nếu trùng port đang có ở máy** Chạy `cp .env.example .env`, đổi port:
-> ```ini
-> APP_PORT=3001
-> API_PORT=8001
-> DB_PORT=5434
-> ```
-> Rồi chạy lại `docker-compose up --build`, truy cập `http://localhost:{APP_PORT}`
-
-
-## 💻 Chạy Development (Local)
-
-### Yêu cầu
-- Python 3.11+
-- Node.js 20+
-- PostgreSQL 15+
-
-### Backend
-
+#### Backend (Python 3.11+)
 ```bash
 cd backend
-
-# Tạo virtual environment
 python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
-
-# Cài dependencies
+.venv\Scripts\activate
 pip install -r requirements.txt
-
-# Cấu hình
-cp .env.example .env
-# Sửa .env cho đúng thông tin database của bạn
-
-# Chạy
+cp .env.example .env # Cấu hình DATABASE_URL và MINIO_KEY
 uvicorn main:app --reload
 ```
 
-Backend chạy tại **http://localhost:8000** | API docs: **http://localhost:8000/docs**
-
-### Frontend
-
+#### Frontend (Node.js 20+)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Frontend chạy tại **http://localhost:5173**
-
-## 🌱 Seed Dữ liệu Mẫu (Tùy chọn)
-
-Dự án cung cấp bộ công cụ để tự động tạo dữ liệu mẫu với hiệu suất cao (users, posts, comments, interactions...) và gán ảnh ngẫu nhiên cho bài viết nhằm mục đích test.
-
-**1. Nếu bạn chạy bằng Docker:**
-```bash
-# Truy cập vào container backend
-docker exec -it <tên_container_backend> /bin/bash
-# Ví dụ: docker exec -it dtuconfessions-backend-1 /bin/bash
-
-# Chạy script tạo dữ liệu (mặc định sẽ tạo lượng lớn data, có thể mất vài chục giây)
-python seed_fake_data.py
-
-# (Tùy chọn) Chạy lệnh với số lượng nhỏ hơn để test nhanh:
-# python seed_fake_data.py --users 500 --posts 2000 --comments 5000 --post_likes 3000 --comment_likes 2000
-
-# Chạy script gán URL ảnh ngẫu nhiên (từ picsum.photos) cho khoảng 70% bài viết chưa có ảnh
-python seed_fake_images.py
-```
-
-**2. Nếu bạn chạy Development (Local):**
-Đảm bảo bạn đang ở trong thư mục `backend` và đã kích hoạt môi trường ảo (`.venv`):
-```bash
-cd backend
-
-# Chạy tạo dữ liệu text
-python seed_fake_data.py
-
-# Chạy tạo dữ liệu ảnh 
-python seed_fake_images.py
-```
-
 ## 📁 Cấu trúc dự án
 
 ```
 dtu-confessions/
-├── docker-compose.yml          # Docker orchestration
 ├── backend/
-│   ├── Dockerfile
-│   ├── main.py                 # FastAPI app
-│   ├── models.py               # SQLAlchemy models
-│   ├── schemas.py              # Pydantic schemas
-│   ├── database.py             # Database connection
-│   ├── auth.py                 # JWT authentication
-│   ├── requirements.txt
-│   ├── .env.example
-│   └── routers/
-│       ├── auth.py             # Đăng ký, đăng nhập
-│       ├── posts.py            # CRUD bài viết
-│       ├── comments.py         # CRUD bình luận
-│       ├── interactions.py     # Like/unlike
-│       ├── media.py            # Upload file
-│       ├── users.py            # Thông tin user
-│       ├── admin.py            # Quản trị
-│       └── stats.py            # Thống kê
+│   ├── main.py                 # FastAPI Gateway
+│   ├── models.py               # Database Models (is_private, shared_post_id...)
+│   ├── routers/                # API Endpoints (Admin, Posts, Media, Stats, Reels...)
+│   └── alembic/                # Database Migrations
 └── frontend/
-    ├── Dockerfile
-    ├── nginx.conf              # Nginx config (production)
-    ├── package.json
-    ├── vite.config.js
     └── src/
-        ├── api/                # Axios API calls
-        ├── components/         # React components
-        ├── context/            # Auth & Theme context
-        └── pages/              # Page components
+        ├── api/                # Axios Services
+        ├── components/         # Common UI Components (PostCard, Sidebar, AdminLayout...)
+        ├── pages/              # 
+        │   ├── admin/          # Admin Sub-pages (Users, Posts, Reports)
+        │   └── ...             # Feed, Reels, Profile...
+        └── context/            # Auth & Theme System
 ```
+
+## 🛡️ Admin Panel
+Để truy cập giao diện quản trị, bạn cần đăng nhập với tài khoản Admin và truy cập đường dẫn trực tiếp: `http://localhost:5173/admin`. Giao diện hỗ trợ quản lý người dùng, bài viết và xem biểu đồ báo cáo thời gian thực.
+
+---
+Phát triển bởi [nguyenvphihung](https://github.com/nguyenvphihung) 🚀
