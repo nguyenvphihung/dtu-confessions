@@ -13,6 +13,8 @@ import { Profile } from './pages/Profile';
 import { AdminUsers } from './pages/admin/AdminUsers';
 import { AdminPosts } from './pages/admin/AdminPosts';
 import { AdminReports } from './pages/admin/AdminReports';
+import { AdminModeration } from './pages/admin/AdminModeration';
+import { AdminReportsList } from './pages/admin/AdminReportsList';
 import { Settings } from './pages/Settings';
 import Reels from './pages/Reels';
 
@@ -53,10 +55,12 @@ function App() {
             </Route>
 
             <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-              <Route index element={<Navigate to="/admin/reports" replace />} />
+              <Route index element={<Navigate to="/admin/moderation" replace />} />
+              <Route path="moderation" element={<AdminModeration />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="posts" element={<AdminPosts />} />
               <Route path="reports" element={<AdminReports />} />
+              <Route path="reports-list" element={<AdminReportsList />} />
             </Route>
 
             <Route path="/reels" element={<ProtectedRoute><Reels /></ProtectedRoute>} />

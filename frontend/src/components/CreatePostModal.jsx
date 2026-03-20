@@ -107,6 +107,7 @@ export function CreatePostModal({ open, onClose, onPostCreated, sharedPost }) {
             setIsAnonymous(false);
             setFiles([]);
             onClose();
+            toast.info('🎉 Confession đã được gửi! Admin sẽ duyệt trước khi hiển thị.', { autoClose: 4000 });
             if (onPostCreated) onPostCreated(fullPost.data);
         } catch (err) {
             toast.error(getApiErrorMessage(err, 'Không thể đăng bài viết'));

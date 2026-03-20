@@ -5,6 +5,7 @@ import dtuLogo from '../assets/dtu_logo.png';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from './CreatePostModal';
+import { NotificationDropdown } from './NotificationDropdown';
 import { motion, AnimatePresence } from 'motion/react';
 
 const navItems = [
@@ -101,6 +102,11 @@ export function Sidebar() {
                             </NavLink>
                         ))}
                     </nav>
+
+                    {/* Notifications */}
+                    <div className="mt-3 px-2">
+                        <NotificationDropdown />
+                    </div>
 
                     {/* Create Post Button */}
                     <motion.button
@@ -211,6 +217,9 @@ export function Sidebar() {
                 >
                     <PenSquare size={22} />
                 </motion.button>
+                <div className="relative">
+                    <NotificationDropdown />
+                </div>
             </nav>
 
             <CreatePostModal open={showCreate} onClose={() => setShowCreate(false)} />

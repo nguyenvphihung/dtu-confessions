@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Heart, MessageCircle, MoreHorizontal, UserCircle, Trash2, Share2, Lock } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, UserCircle, Trash2, Share2, Lock, Flag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,7 @@ import ImageModal from './ImageModal';
 import { VideoModal } from './VideoModal';
 import { AutoPlayVideo } from './AutoPlayVideo';
 import api, { getApiErrorMessage } from '../api/axios';
+import { createReport } from '../api/reports';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 
@@ -181,6 +182,24 @@ export function PostCard({ post, index = 0, onDelete }) {
                                     <Lock size={12} strokeWidth={2} />
                                 </div>
                             )}
+                            {post.confession_number && (
+                                <span
+                                    className="px-1.5 py-0.5 rounded-lg text-xs font-bold"
+                                    style={{ background: 'rgba(197, 48, 48, 0.1)', color: '#C53030', fontFamily: 'Inter, sans-serif' }}
+                                >
+                                    #DTU_CFS_{post.confession_number}
+                                </span>
+                            )}
+                            {isOwner && post.status === 'pending' && (
+                                <span className="px-1.5 py-0.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', fontFamily: 'Inter, sans-serif' }}>
+                                    ⏳ Chờ duyệt
+                                </span>
+                            )}
+                            {isOwner && post.status === 'rejected' && (
+                                <span className="px-1.5 py-0.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', fontFamily: 'Inter, sans-serif' }} title={post.rejected_reason || ''}>
+                                    ❌ Bị từ chối
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <span style={{ fontSize: '0.78rem', color: isDark ? '#475569' : '#94A3B8' }}>
@@ -190,7 +209,7 @@ export function PostCard({ post, index = 0, onDelete }) {
                     </div>
                 </div>
                 <div className="relative" ref={menuRef}>
-                    {isOwner && (
+                    {(isOwner || user) && (
                         <button
                             onClick={() => setShowMenu(!showMenu)}
                             className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
@@ -202,7 +221,7 @@ export function PostCard({ post, index = 0, onDelete }) {
 
                     {/* Dropdown Menu */}
                     <AnimatePresence>
-                    {showMenu && isOwner && (
+                    {showMenu && (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9, y: -5 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -214,15 +233,53 @@ export function PostCard({ post, index = 0, onDelete }) {
                                 border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'
                             }}
                         >
-                            <button
-                                onClick={handleDeletePost}
-                                disabled={isDeleting}
-                                className="w-full text-left px-4 py-3 text-sm flex items-center gap-2 cursor-pointer transition-colors hover:opacity-80 disabled:opacity-50"
-                                style={{ color: '#FF6B6B' }}
-                            >
-                                <Trash2 size={16} />
-                                {isDeleting ? 'Đang xóa...' : 'Xóa bài viết'}
-                            </button>
+                            {isOwner && (
+                                <button
+                                    onClick={handleDeletePost}
+                                    disabled={isDeleting}
+                                    className="w-full text-left px-4 py-3 text-sm flex items-center gap-2 cursor-pointer transition-colors hover:opacity-80 disabled:opacity-50"
+                                    style={{ color: '#FF6B6B' }}
+                                >
+                                    <Trash2 size={16} />
+                                    {isDeleting ? 'Đang xóa...' : 'Xóa bài viết'}
+                                </button>
+                            )}
+                            {!isOwner && user && (
+                                <button
+                                    onClick={async () => {
+                                        setShowMenu(false);
+                                        const { value: reason, isConfirmed } = await Swal.fire({
+                                            title: 'Báo cáo vi phạm',
+                                            input: 'select',
+                                            inputOptions: {
+                                                spam: 'Spam / Quảng cáo',
+                                                violence: 'Bạo lực / Đe dọa',
+                                                harassment: 'Quấy rối',
+                                                sensitive: 'Nội dung nhạy cảm',
+                                                misinformation: 'Thông tin sai lệch',
+                                                other: 'Khác',
+                                            },
+                                            inputPlaceholder: 'Chọn lý do',
+                                            showCancelButton: true,
+                                            confirmButtonText: 'Gửi báo cáo',
+                                            cancelButtonText: 'Hủy',
+                                            confirmButtonColor: '#EF4444',
+                                        });
+                                        if (!isConfirmed || !reason) return;
+                                        try {
+                                            await createReport('post', post.id, reason);
+                                            toast.success('Đã gửi báo cáo. Cảm ơn bạn!');
+                                        } catch (err) {
+                                            toast.error(getApiErrorMessage(err, 'Không thể gửi báo cáo'));
+                                        }
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-sm flex items-center gap-2 cursor-pointer transition-colors hover:opacity-80"
+                                    style={{ color: isDark ? '#94A3B8' : '#64748B' }}
+                                >
+                                    <Flag size={16} />
+                                    Báo cáo
+                                </button>
+                            )}
                         </motion.div>
                     )}
                     </AnimatePresence>

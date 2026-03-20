@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { motion } from 'motion/react';
-import { Shield, Users, AlertTriangle, Settings, LogOut, ArrowLeft, FileText, BarChart3 } from 'lucide-react';
+import { Shield, Users, AlertTriangle, Settings, LogOut, ArrowLeft, FileText, BarChart3, CheckSquare, Flag } from 'lucide-react';
 
 export function AdminLayout() {
     const { logout } = useAuth();
@@ -12,9 +12,11 @@ export function AdminLayout() {
     const location = useLocation();
     
     const menuItems = [
+        { path: '/admin/moderation', icon: CheckSquare, label: 'Duyệt bài' },
         { path: '/admin/users', icon: Users, label: 'Người dùng' },
         { path: '/admin/posts', icon: FileText, label: 'Bài viết' },
-        { path: '/admin/reports', icon: BarChart3, label: 'Báo cáo' },
+        { path: '/admin/reports-list', icon: Flag, label: 'Báo cáo vi phạm' },
+        { path: '/admin/reports', icon: BarChart3, label: 'Thống kê' },
     ];
 
     return (

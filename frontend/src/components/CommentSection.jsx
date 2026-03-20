@@ -121,11 +121,29 @@ const CommentItem = ({ comment, entityType, entityId, isDark, onReplySuccess, de
                                 fontWeight: 600,
                                 fontSize: '0.78rem',
                                 color: isDark ? '#CBD5E1' : '#374151',
-                                display: 'block'
+                                display: 'inline'
                             }}
                         >
                             {comment.user?.display_name || comment.user?.student_id || 'Người dùng'}
                         </span>
+                        {comment.is_post_author && (
+                            <span
+                                style={{
+                                    display: 'inline-block',
+                                    marginLeft: '6px',
+                                    padding: '1px 6px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    fontFamily: 'Inter, sans-serif',
+                                    background: 'linear-gradient(135deg, rgba(197, 48, 48, 0.15), rgba(229, 62, 62, 0.15))',
+                                    color: '#E53E3E',
+                                    border: '1px solid rgba(229, 62, 62, 0.2)',
+                                }}
+                            >
+                                Tác giả
+                            </span>
+                        )}
                         <p
                             style={{
                                 fontFamily: 'Inter, sans-serif',
