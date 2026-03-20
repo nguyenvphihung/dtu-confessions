@@ -50,6 +50,9 @@ def __format_post_response(post: models.Post, like_count: int, comment_count: in
         "content": post.content,
         "is_anonymous": bool(post.is_anonymous),
         "is_private": bool(post.is_private),
+        "status": getattr(post, 'status', 'approved'),
+        "confession_number": getattr(post, 'confession_number', None),
+        "rejected_reason": getattr(post, 'rejected_reason', None),
         "created_at": post.created_at,
         "like_count": like_count,
         "comment_count": comment_count,
@@ -85,7 +88,8 @@ def create_post(post_data: schemas.PostCreate, db: Session = Depends(get_db), cu
         content = post_data.content,
         is_anonymous = post_data.is_anonymous,
         is_private = post_data.is_private,
-        shared_post_id = post_data.shared_post_id
+        shared_post_id = post_data.shared_post_id,
+        status = "pending"
     )
     db.add(new_post)
     db.commit()
@@ -113,15 +117,21 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
     
     if current_user:
         query = query.filter(or_(
-            models.Post.is_private == False,
-            models.Post.is_private.is_(None),
-            models.Post.author_id == current_user.id
+            and_(models.Post.status == "approved", or_(
+                models.Post.is_private == False,
+                models.Post.is_private.is_(None),
+                models.Post.author_id == current_user.id
+            )),
+            models.Post.author_id == current_user.id  # show own pending/rejected
         ))
     else:
-        query = query.filter(or_(
-            models.Post.is_private == False,
-            models.Post.is_private.is_(None)
-        ))
+        query = query.filter(
+            models.Post.status == "approved",
+            or_(
+                models.Post.is_private == False,
+                models.Post.is_private.is_(None)
+            )
+        )
 
     if current_user:
         user_liked_subq = db.query(models.Interaction.id).filter(
@@ -175,10 +185,11 @@ def get_user_posts(user_id: int, skip: int = 0, limit: int = 20, db: Session = D
         joinedload(models.Post.shared_post).joinedload(models.Post.media)
     ).filter(models.Post.author_id == user_id)
     
-    # Hide anonymous and private posts from others
+    # Hide anonymous and private posts from others; also hide non-approved
     if not current_user or current_user.id != user_id:
         query = query.filter(
             models.Post.is_anonymous == False,
+            models.Post.status == "approved",
             or_(models.Post.is_private == False, models.Post.is_private.is_(None))
         )
 

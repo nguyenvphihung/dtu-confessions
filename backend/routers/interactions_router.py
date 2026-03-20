@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database import get_db
 from auth import get_current_user
+from services.notification_service import create_notification
 import models
 
 router = APIRouter(tags=["Interactions"])
@@ -50,6 +51,19 @@ def like_post(post_id: int, db: Session = Depends(get_db), current_user: models.
         models.Interaction.post_id == post_id,
         models.Interaction.interaction_type == "like"
     ).scalar() or 0
+
+    # Notify post author
+    if post.author_id != current_user.id:
+        liker_name = current_user.display_name or current_user.student_id
+        create_notification(
+            db=db,
+            user_id=post.author_id,
+            notification_type="new_like",
+            message=f"{liker_name} đã thích confession của bạn",
+            ref_type="post",
+            ref_id=post_id,
+        )
+
     return _success(
         data={
             "status": "liked",

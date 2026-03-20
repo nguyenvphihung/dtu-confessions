@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 import models
+from services.notification_service import create_notification
 
 
 def create_comment_for_post(
@@ -34,6 +35,33 @@ def create_comment_for_post(
     db.commit()
     db.refresh(new_comment)
 
+    # --- Notifications ---
+    commenter_name = current_user.display_name or current_user.student_id
+
+    if parent_id:
+        # Reply notification → notify parent comment author
+        parent_comment = db.query(models.Comment).filter(models.Comment.id == parent_id).first()
+        if parent_comment and parent_comment.user_id != current_user.id:
+            create_notification(
+                db=db,
+                user_id=parent_comment.user_id,
+                notification_type="new_reply",
+                message=f"{commenter_name} đã phản hồi bình luận của bạn",
+                ref_type="post",
+                ref_id=post_id,
+            )
+    else:
+        # Top-level comment → notify post author
+        if post.author_id != current_user.id:
+            create_notification(
+                db=db,
+                user_id=post.author_id,
+                notification_type="new_comment",
+                message=f"{commenter_name} đã bình luận confession của bạn",
+                ref_type="post",
+                ref_id=post_id,
+            )
+
     return {
         "id": new_comment.id,
         "user_id": new_comment.user_id,
@@ -44,11 +72,16 @@ def create_comment_for_post(
         "user": current_user,
         "like_count": 0,
         "user_liked": False,
+        "is_post_author": new_comment.user_id == post.author_id,
         "replies": []
     }
 
 
 def get_comments_for_post(post_id: int, db: Session, current_user: models.User | None) -> List[dict]:
+    # Get post author_id for is_post_author flag
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    post_author_id = post.author_id if post else None
+
     likes_subq = db.query(func.count(models.CommentInteraction.id)).filter(
         models.CommentInteraction.comment_id == models.Comment.id,
         models.CommentInteraction.interaction_type == "like"
@@ -85,6 +118,7 @@ def get_comments_for_post(post_id: int, db: Session, current_user: models.User |
             "user": comment.user,
             "like_count": like_count,
             "user_liked": user_liked,
+            "is_post_author": comment.user_id == post_author_id,
             "replies": []
         }
 
@@ -98,3 +132,4 @@ def get_comments_for_post(post_id: int, db: Session, current_user: models.User |
                 comment_dict[parent_id]["replies"].append(comment_data)
 
     return root_comments
+

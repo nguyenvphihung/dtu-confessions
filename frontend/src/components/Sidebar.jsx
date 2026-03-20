@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, User, Sun, Moon, PenSquare, LogOut, ShieldCheck, Clapperboard, Settings as SettingsIcon } from 'lucide-react';
+import { Home, User, PenSquare, LogOut, ShieldCheck, Clapperboard, Settings as SettingsIcon } from 'lucide-react';
 import dtuLogo from '../assets/dtu_logo.png';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +18,7 @@ const navItems = [
 
 
 export function Sidebar() {
-    const { isDark, toggleTheme } = useTheme();
+    const { isDark } = useTheme();
     const { user, logout } = useAuth();
     const [showCreate, setShowCreate] = useState(false);
     const navigate = useNavigate();
@@ -129,19 +129,7 @@ export function Sidebar() {
 
                 {/* Bottom */}
                 <div className="flex flex-col gap-2">
-                    <button
-                        onClick={toggleTheme}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 cursor-pointer"
-                        style={{
-                            color: isDark ? '#94A3B8' : '#64748B',
-                            background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-                        }}
-                    >
-                        {isDark ? <Sun size={20} /> : <Moon size={20} />}
-                        <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 500, fontSize: '0.925rem' }}>
-                            {isDark ? 'Sáng' : 'Tối'}
-                        </span>
-                    </button>
+
 
                     {user && (
                         <div

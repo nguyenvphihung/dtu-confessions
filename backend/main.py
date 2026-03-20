@@ -8,7 +8,7 @@ import models
 import os
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 
-from routers import users_router, posts_router, comments_router, interactions_router, auth_router, media_router, admin_router, stats_router, reels_router
+from routers import users_router, posts_router, comments_router, interactions_router, auth_router, media_router, admin_router, stats_router, reels_router, reports_router, notifications_router
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -73,6 +73,8 @@ app.include_router(media_router.router)
 app.include_router(admin_router.router)
 app.include_router(stats_router.router)
 app.include_router(reels_router.router)
+app.include_router(reports_router.router)
+app.include_router(notifications_router.router)
 
 
 @app.get("/")

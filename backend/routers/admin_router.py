@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_, func, desc
+from datetime import datetime, timezone
 from database import get_db
 from auth import get_admin_user
+from services.notification_service import create_notification
 import models
 import schemas
 from typing import Optional
@@ -124,4 +126,197 @@ def delete_any_comment(
     db.delete(comment)
     db.commit()
     return {"message": "Đã xoá bình luận thành công"}
+
+
+# ============================================================
+# POST MODERATION
+# ============================================================
+
+@router.get("/pending-posts")
+def get_pending_posts(
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_admin_user)
+):
+    """Lấy danh sách bài viết đang chờ duyệt."""
+    query = db.query(models.Post).options(
+        joinedload(models.Post.author),
+        joinedload(models.Post.media),
+    ).filter(models.Post.status == "pending")
+
+    total = query.count()
+    posts = query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+
+    return {
+        "total": total,
+        "items": [
+            {
+                "id": p.id,
+                "author_id": p.author_id,
+                "content": p.content,
+                "is_anonymous": p.is_anonymous,
+                "status": p.status,
+                "created_at": p.created_at,
+                "media_count": len(p.media) if p.media else 0,
+                "author": {
+                    "id": p.author.id,
+                    "student_id": p.author.student_id,
+                    "display_name": p.author.display_name,
+                } if p.author else None
+            } for p in posts
+        ]
+    }
+
+
+@router.put("/posts/{post_id}/approve")
+def approve_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_admin_user)
+):
+    """Duyệt bài viết và gán confession number tự động."""
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Bài viết không tồn tại")
+    if post.status == "approved":
+        raise HTTPException(status_code=400, detail="Bài viết đã được duyệt rồi")
+
+    # Generate next confession_number
+    max_num = db.query(func.max(models.Post.confession_number)).scalar() or 0
+    post.status = "approved"
+    post.confession_number = max_num + 1
+    post.rejected_reason = None
+    db.commit()
+
+    # Notify author
+    create_notification(
+        db=db,
+        user_id=post.author_id,
+        notification_type="post_approved",
+        message=f"Confession #{post.confession_number} của bạn đã được duyệt! 🎉",
+        ref_type="post",
+        ref_id=post.id,
+    )
+
+    return {"message": f"Đã duyệt bài viết thành #DTU_CFS_{post.confession_number}"}
+
+
+@router.put("/posts/{post_id}/reject")
+def reject_post(
+    post_id: int,
+    reason: Optional[str] = Body(None, embed=True, description="Lý do từ chối"),
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_admin_user)
+):
+    """Từ chối bài viết."""
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Bài viết không tồn tại")
+    if post.status == "approved":
+        raise HTTPException(status_code=400, detail="Không thể từ chối bài đã duyệt")
+
+    post.status = "rejected"
+    post.rejected_reason = reason
+    db.commit()
+
+    # Notify author
+    msg = "Confession của bạn đã bị từ chối."
+    if reason:
+        msg += f" Lý do: {reason}"
+    create_notification(
+        db=db,
+        user_id=post.author_id,
+        notification_type="post_rejected",
+        message=msg,
+        ref_type="post",
+        ref_id=post.id,
+    )
+
+    return {"message": "Đã từ chối bài viết"}
+
+
+# ============================================================
+# REPORT MANAGEMENT
+# ============================================================
+
+@router.get("/reports")
+def get_reports(
+    skip: int = 0,
+    limit: int = 20,
+    status: Optional[str] = Query(None, description="pending, resolved, dismissed"),
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_admin_user)
+):
+    """Lấy danh sách báo cáo vi phạm."""
+    query = db.query(models.Report).options(
+        joinedload(models.Report.reporter)
+    )
+    if status:
+        query = query.filter(models.Report.status == status)
+
+    total = query.count()
+    reports = query.order_by(models.Report.created_at.desc()).offset(skip).limit(limit).all()
+
+    items = []
+    for r in reports:
+        # Enrich with target content
+        target_content = None
+        target_author = None
+        if r.target_type == "post":
+            post = db.query(models.Post).options(joinedload(models.Post.author)).filter(models.Post.id == r.target_id).first()
+            if post:
+                target_content = post.content[:200] if post.content else None
+                target_author = post.author.display_name or post.author.student_id if post.author else None
+        elif r.target_type == "comment":
+            comment = db.query(models.Comment).options(joinedload(models.Comment.user)).filter(models.Comment.id == r.target_id).first()
+            if comment:
+                target_content = comment.content[:200] if comment.content else None
+                target_author = comment.user.display_name or comment.user.student_id if comment.user else None
+
+        items.append({
+            "id": r.id,
+            "reporter_id": r.reporter_id,
+            "target_type": r.target_type,
+            "target_id": r.target_id,
+            "reason": r.reason,
+            "description": r.description,
+            "status": r.status,
+            "created_at": r.created_at,
+            "resolved_at": r.resolved_at,
+            "reporter": {
+                "id": r.reporter.id,
+                "display_name": r.reporter.display_name,
+                "student_id": r.reporter.student_id,
+            } if r.reporter else None,
+            "target_content": target_content,
+            "target_author": target_author,
+        })
+
+    return {"total": total, "items": items}
+
+
+@router.put("/reports/{report_id}/resolve")
+def resolve_report(
+    report_id: int,
+    action: str = Body(..., embed=True, description="'resolved' hoặc 'dismissed'"),
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_admin_user)
+):
+    """Xử lý hoặc bỏ qua báo cáo vi phạm."""
+    if action not in ["resolved", "dismissed"]:
+        raise HTTPException(status_code=400, detail="Action phải là 'resolved' hoặc 'dismissed'")
+
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Không tìm thấy báo cáo")
+    if report.status != "pending":
+        raise HTTPException(status_code=400, detail="Báo cáo này đã được xử lý")
+
+    report.status = action
+    report.resolved_at = datetime.now(timezone.utc)
+    db.commit()
+
+    status_text = "đã xử lý" if action == "resolved" else "đã bỏ qua"
+    return {"message": f"Báo cáo #{report.id} {status_text}"}
 

@@ -21,6 +21,7 @@ class User(Base):
     comments = relationship("Comment", back_populates="user")
     interactions = relationship("Interaction", back_populates="user")
     comment_interactions = relationship("CommentInteraction", back_populates="user")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 
 class Post(Base):
@@ -32,6 +33,9 @@ class Post(Base):
     is_anonymous = Column(Boolean, default=False)
     is_private = Column(Boolean, default=False)
     shared_post_id = Column(Integer, ForeignKey("posts.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(20), default="pending", nullable=False, index=True)
+    confession_number = Column(Integer, unique=True, nullable=True)
+    rejected_reason = Column(String(500), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     author = relationship("User", back_populates="posts")
@@ -130,3 +134,38 @@ class ReelInteraction(Base):
     watch_time = Column(Float, default=0)
     created_at = Column(DateTime, server_default=func.now())
     media = relationship("PostMedia", back_populates="reel_interactions")
+
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    reporter_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    target_type = Column(String(20), nullable=False)  # "post" | "comment"
+    target_id = Column(Integer, nullable=False)
+    reason = Column(String(50), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String(20), default="pending", nullable=False, index=True)
+    created_at = Column(DateTime, server_default=func.now())
+    resolved_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("reporter_id", "target_type", "target_id", name="uq_user_report_target"),
+    )
+
+    reporter = relationship("User", foreign_keys=[reporter_id])
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    type = Column(String(30), nullable=False)
+    message = Column(String(500), nullable=False)
+    ref_type = Column(String(20), nullable=True)
+    ref_id = Column(Integer, nullable=True)
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", back_populates="notifications")
