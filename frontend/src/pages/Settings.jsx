@@ -14,6 +14,9 @@ export function Settings() {
     const [pendingData, setPendingData] = useState(null);
     const [otpCode, setOtpCode] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [newData, setNewData] = useState({ email: '', password: '' });
 
     const sectionStyle = {
         background: isDark ? '#1A1A24' : '#FFFFFF',
@@ -137,10 +140,7 @@ export function Settings() {
                                         <div className="text-xs text-green-500 flex items-center gap-1 mt-1 font-medium"><Lock size={12}/> Đã xác minh</div>
                                     </div>
                                     <button 
-                                        onClick={() => {
-                                            const newEmail = window.prompt("Nhập email mới của bạn:");
-                                            if(newEmail && newEmail !== user.email) handleSendOtp('change_email', { email: newEmail });
-                                        }}
+                                        onClick={() => setShowEmailModal(true)}
                                         className="text-sm px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer"
                                         style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
                                     >
@@ -160,11 +160,7 @@ export function Settings() {
                                         <div className="text-xs mt-1" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Đăng nhập an toàn bằng mật khẩu</div>
                                     </div>
                                     <button 
-                                        onClick={() => {
-                                            const newPass = window.prompt("Nhập mật khẩu MỚI (ít nhất 6 ký tự):");
-                                            if(newPass && newPass.length >= 6) handleSendOtp('change_password', { password: newPass });
-                                            else if(newPass) toast.warning("Mật khẩu quá ngắn!");
-                                        }}
+                                        onClick={() => setShowPasswordModal(true)}
                                         className="text-sm px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer"
                                         style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
                                     >
@@ -268,6 +264,82 @@ export function Settings() {
             <div className="flex-1 px-4 md:px-0 min-w-0">
                 {renderContent()}
             </div>
+
+            {/* Email Change Modal */}
+            <AnimatePresence>
+                {showEmailModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowEmailModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
+                            style={{ background: isDark ? '#1A1A24' : '#FFFFFF', border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)' }}
+                        >
+                            <h3 className="text-xl font-bold mb-4" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Thay đổi Email</h3>
+                            <div className="space-y-4">
+                                <input 
+                                    type="email" 
+                                    placeholder="Nhập email mới" 
+                                    className="w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-red-500/20"
+                                    style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                    onChange={(e) => setNewData({ ...newData, email: e.target.value })}
+                                />
+                                <button 
+                                    onClick={() => {
+                                        if (newData.email && newData.email !== user.email) {
+                                            handleSendOtp('change_email', { email: newData.email });
+                                            setShowEmailModal(false);
+                                        } else {
+                                            toast.error("Email không hợp lệ hoặc trùng với email cũ");
+                                        }
+                                    }}
+                                    className="w-full py-3 rounded-xl font-bold text-white shadow-lg bg-gradient-to-r from-red-600 to-red-500 cursor-pointer"
+                                >
+                                    Tiếp tục xác thực
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Password Change Modal */}
+            <AnimatePresence>
+                {showPasswordModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowPasswordModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
+                            style={{ background: isDark ? '#1A1A24' : '#FFFFFF', border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)' }}
+                        >
+                            <h3 className="text-xl font-bold mb-4" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Đổi mật khẩu</h3>
+                            <div className="space-y-4">
+                                <input 
+                                    type="password" 
+                                    placeholder="Mật khẩu mới (ít nhất 6 ký tự)" 
+                                    className="w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-red-500/20"
+                                    style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                    onChange={(e) => setNewData({ ...newData, password: e.target.value })}
+                                />
+                                <button 
+                                    onClick={() => {
+                                        if (newData.password && newData.password.length >= 6) {
+                                            handleSendOtp('change_password', { password: newData.password });
+                                            setShowPasswordModal(false);
+                                        } else {
+                                            toast.error("Mật khẩu phải có ít nhất 6 ký tự");
+                                        }
+                                    }}
+                                    className="w-full py-3 rounded-xl font-bold text-white shadow-lg bg-gradient-to-r from-red-600 to-red-500 cursor-pointer"
+                                >
+                                    Tiếp tục xác thực
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
 
             {/* OTP Modal */}
