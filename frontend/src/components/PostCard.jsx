@@ -434,105 +434,119 @@ export function PostCard({ post, index = 0, onDelete }) {
             )}
             <VideoModal open={!!activeVideo} source={activeVideo} onClose={() => setActiveVideo(null)} />
 
+            {/* Stats Section */}
+            {(likeCount > 0 || commentCount > 0) && (
+                <div className="flex items-center justify-between px-3 sm:px-5 py-2.5">
+                    <div className="flex items-center gap-1.5 cursor-pointer hover:underline text-[0.85rem]" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                        {likeCount > 0 ? (
+                            <div className="flex items-center">
+                                {/* Simulated stacked icons based on Facebook - showing top reactions */}
+                                <div className="flex items-center -space-x-1.5 mr-1.5">
+                                    <div className="w-[18px] h-[18px] rounded-full bg-blue-500 text-white flex items-center justify-center border border-white dark:border-[#1A1A24] shadow-sm text-[10px]" style={{ zIndex: 2 }}>👍</div>
+                                    <div className="w-[18px] h-[18px] rounded-full bg-red-500 text-white flex items-center justify-center border border-white dark:border-[#1A1A24] shadow-sm text-[10px]" style={{ zIndex: 1 }}>❤️</div>
+                                </div>
+                                <span style={{ fontFamily: 'Inter, sans-serif' }}>{formatNumber(likeCount)}</span>
+                            </div>
+                        ) : <div />}
+                    </div>
+                    {commentCount > 0 && (
+                        <div 
+                            onClick={() => setShowComments(!showComments)}
+                            className="text-[0.85rem] cursor-pointer hover:underline" 
+                            style={{ color: isDark ? '#94A3B8' : '#64748B', fontFamily: 'Inter, sans-serif' }}
+                        >
+                            {formatNumber(commentCount)} bình luận
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Divider */}
-            <div className="mx-3 sm:mx-5" style={{ height: 1, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)' }} />
+            <div className="mx-3 sm:mx-5" style={{ height: 1, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginTop: (likeCount > 0 || commentCount > 0) ? 0 : '10px' }} />
 
             {/* Actions */}
-            <div className="flex items-center justify-between px-3 sm:px-5 py-3">
-                <div className="flex items-center gap-1">
-                    <div 
-                        className="relative flex items-center" 
-                        onMouseEnter={handleReactMouseEnter} 
-                        onMouseLeave={handleReactMouseLeave}
-                    >
-                        <AnimatePresence>
-                            {showReactions && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                                    className="absolute bottom-full left-0 mb-2 flex items-center gap-1.5 p-2 rounded-[32px] shadow-lg border z-50 origin-bottom-left"
-                                    style={{
-                                        background: isDark ? '#1E1E2D' : '#FFFFFF',
-                                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
-                                    }}
-                                >
-                                    {REACTION_TYPES.map((r, i) => (
-                                        <motion.button
-                                            key={r.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: i * 0.04 }}
-                                            whileHover={{ scale: 1.25, originY: 1 }}
-                                            whileTap={{ scale: 0.9 }}
-                                            onClick={(e) => { e.stopPropagation(); handleReact(r.id); }}
-                                            className="w-10 h-10 flex items-center justify-center text-[26px] hover:bg-black/5 rounded-full transition-colors cursor-pointer"
-                                            title={r.name}
-                                        >
-                                            {r.icon}
-                                        </motion.button>
-                                    ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+            <div className="flex items-center justify-between px-2 sm:px-4 py-1">
+                {/* Like Button Wrapper */}
+                <div 
+                    className="relative flex-1"
+                    onMouseEnter={handleReactMouseEnter} 
+                    onMouseLeave={handleReactMouseLeave}
+                >
+                    <AnimatePresence>
+                        {showReactions && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                                className="absolute bottom-full left-0 mb-2 flex items-center gap-1 p-1.5 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.15)] border z-50 origin-bottom-left"
+                                style={{
+                                    background: isDark ? '#1E1E2D' : '#FFFFFF',
+                                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+                                }}
+                            >
+                                {REACTION_TYPES.map((r, i) => (
+                                    <motion.button
+                                        key={r.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: i * 0.04 }}
+                                        whileHover={{ scale: 1.3, originY: 1 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={(e) => { e.stopPropagation(); handleReact(r.id); }}
+                                        className="w-10 h-10 flex items-center justify-center text-[24px] hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors cursor-pointer"
+                                        title={r.name}
+                                    >
+                                        {r.icon}
+                                    </motion.button>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                        <motion.button
-                            whileTap={{ scale: 0.85 }}
-                            whileHover={{ scale: 1.05 }}
-                            onClick={() => handleReact(reaction || 'like')}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl cursor-pointer"
-                            style={{
-                                color: reaction ? REACTION_TYPES.find(r => r.id === reaction)?.color || '#1877F2' : isDark ? '#64748B' : '#94A3B8',
-                                background: reaction ? `${REACTION_TYPES.find(r => r.id === reaction)?.color || '#1877F2'}1A` : isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-                                transition: 'color 0.2s ease, background 0.2s ease',
-                            }}
-                        >
-                            {reaction ? (
-                                <span className="text-lg leading-none">{REACTION_TYPES.find(r => r.id === reaction)?.icon}</span>
-                            ) : (
-                                <Heart size={17} strokeWidth={1.8} />
-                            )}
-                            <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '0.82rem' }}>
-                                {formatNumber(likeCount)}
-                            </span>
-                        </motion.button>
-                    </div>
-
-                    <motion.button
-                        whileTap={{ scale: 0.85 }}
-                        whileHover={{ scale: 1.05 }}
-                        onClick={() => setShowComments(!showComments)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl cursor-pointer"
+                    <button
+                        onClick={() => handleReact(reaction || 'like')}
+                        className="w-full flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                         style={{
-                            color: showComments ? '#C53030' : isDark ? '#64748B' : '#94A3B8',
-                            background: showComments ? (isDark ? 'rgba(197, 48, 48, 0.15)' : 'rgba(197, 48, 48, 0.08)') : 'transparent',
-                            transition: 'color 0.2s ease, background 0.2s ease',
+                            color: reaction ? REACTION_TYPES.find(r => r.id === reaction)?.color || '#1877F2' : isDark ? '#94A3B8' : '#64748B',
                         }}
                     >
-                        <MessageCircle size={17} strokeWidth={1.8} />
-                        <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '0.82rem' }}>
-                            {formatNumber(commentCount)}
+                        {reaction ? (
+                            <span className="text-xl leading-none" style={{ transform: 'translateY(-1px)' }}>{REACTION_TYPES.find(r => r.id === reaction)?.icon}</span>
+                        ) : (
+                            <Heart size={20} strokeWidth={1.5} />
+                        )}
+                        <span className="hidden sm:inline" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.9rem' }}>
+                            {reaction ? REACTION_TYPES.find(r => r.id === reaction)?.name : 'Thích'}
                         </span>
-                    </motion.button>
+                    </button>
                 </div>
 
-                <motion.button
-                    whileTap={{ scale: 0.85 }}
-                    whileHover={{ scale: 1.05 }}
-                    onClick={() => setShowShareModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl cursor-pointer"
+                <button
+                    onClick={() => setShowComments(!showComments)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                     style={{
-                        color: isDark ? '#64748B' : '#94A3B8',
-                        background: 'transparent',
-                        transition: 'color 0.2s ease, background 0.2s ease',
+                        color: showComments ? '#C53030' : isDark ? '#94A3B8' : '#64748B',
                     }}
                 >
-                    <Share2 size={17} strokeWidth={1.8} />
-                    <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '0.82rem' }}>
+                    <MessageCircle size={20} strokeWidth={1.5} />
+                    <span className="hidden sm:inline" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.9rem' }}>
+                        Bình luận
+                    </span>
+                </button>
+
+                <button
+                    onClick={() => setShowShareModal(true)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    style={{
+                        color: isDark ? '#94A3B8' : '#64748B',
+                    }}
+                >
+                    <Share2 size={20} strokeWidth={1.5} />
+                    <span className="hidden sm:inline" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.9rem' }}>
                         Chia sẻ
                     </span>
-                </motion.button>
+                </button>
             </div>
 
             {/* Comments */}
