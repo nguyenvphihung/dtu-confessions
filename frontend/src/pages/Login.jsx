@@ -4,8 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { MessageSquareHeart, Eye, EyeOff, X, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getApiErrorMessage, api } from '../api/axios';
+import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
+
 
 export function Login() {
     const { isDark } = useTheme();
