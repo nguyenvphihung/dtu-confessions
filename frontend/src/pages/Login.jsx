@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { MessageSquareHeart, Eye, EyeOff } from 'lucide-react';
+import { MessageSquareHeart, Eye, EyeOff, X, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getApiErrorMessage } from '../api/axios';
+import { getApiErrorMessage, api } from '../api/axios';
+import { toast } from 'react-toastify';
 
 export function Login() {
     const { isDark } = useTheme();
@@ -16,6 +17,11 @@ export function Login() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [remember, setRemember] = useState(true);
+
+    // Forgot Password States
+    const [showForgotModal, setShowForgotModal] = useState(false);
+    const [forgotStep, setForgotStep] = useState(1);
+    const [forgotData, setForgotData] = useState({ email: '', otp_code: '', new_password: '' });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -177,9 +183,12 @@ export function Login() {
 
                 <div className="mt-6 text-center">
                     <div className="flex justify-between items-center">
-                        <a href="#" style={{ color: '#E53E3E', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none' }}>
+                        <button 
+                            onClick={() => setShowForgotModal(true)}
+                            className="text-[#E53E3E] text-[0.85rem] font-semibold no-underline cursor-pointer hover:opacity-80 transition-opacity"
+                        >
                             Quên mật khẩu?
-                        </a>
+                        </button>
                         <span style={{ color: isDark ? '#64748B' : '#94A3B8', fontSize: '0.85rem' }}>
                             Chưa có tài khoản?{' '}
                             <Link
@@ -192,6 +201,154 @@ export function Login() {
                     </div>
                 </div>
             </motion.div>
+
+            {/* Forgot Password Modal */}
+            <AnimatePresence>
+                {showForgotModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => {
+                                setShowForgotModal(false);
+                                setForgotStep(1);
+                                setForgotData({ email: '', otp_code: '', new_password: '' });
+                            }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative w-full max-w-md rounded-2xl p-8 shadow-2xl"
+                            style={{ background: isDark ? '#1A1A24' : '#FFFFFF' }}
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="font-bold text-xl" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Khôi phục mật khẩu</h3>
+                                <button onClick={() => setShowForgotModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors cursor-pointer">
+                                    <X size={20} style={{ color: isDark ? '#64748B' : '#94A3B8' }} />
+                                </button>
+                            </div>
+
+                            {forgotStep === 1 && (
+                                <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    setLoading(true);
+                                    try {
+                                        await api.post('/auth/otp/send', { email: forgotData.email, purpose: 'forgot_password' });
+                                        toast.success('Mã OTP đã được gửi đến email của bạn');
+                                        setForgotStep(2);
+                                    } catch (err) {
+                                        toast.error(getApiErrorMessage(err, 'Lỗi gửi OTP'));
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }} className="space-y-4">
+                                    <p className="text-sm" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Nhập email bạn đã đăng ký để nhận mã khôi phục.</p>
+                                    <input 
+                                        type="email"
+                                        placeholder="your-email@example.com"
+                                        required
+                                        value={forgotData.email}
+                                        onChange={e => setForgotData({...forgotData, email: e.target.value})}
+                                        className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
+                                        style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="w-full py-3 rounded-xl text-white font-bold cursor-pointer disabled:opacity-50"
+                                        style={{ background: 'linear-gradient(135deg, #E53E3E 0%, #FF6B6B 100%)' }}
+                                    >
+                                        {loading ? 'Đang gửi...' : 'Gửi mã xác nhận'}
+                                    </button>
+                                </form>
+                            )}
+
+                            {forgotStep === 2 && (
+                                <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    setLoading(true);
+                                    try {
+                                        await api.post('/auth/otp/verify', { 
+                                            email: forgotData.email, 
+                                            otp_code: forgotData.otp_code, 
+                                            purpose: 'forgot_password' 
+                                        });
+                                        setForgotStep(3);
+                                    } catch (err) {
+                                        toast.error(getApiErrorMessage(err, 'Mã OTP không đúng hoặc hết hạn'));
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }} className="space-y-4">
+                                    <p className="text-sm" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Nhập mã OTP 6 số đã được gửi tới <strong>{forgotData.email}</strong>.</p>
+                                    <input 
+                                        type="text"
+                                        placeholder="Mã OTP"
+                                        maxLength="6"
+                                        required
+                                        value={forgotData.otp_code}
+                                        onChange={e => setForgotData({...forgotData, otp_code: e.target.value})}
+                                        className="w-full px-4 py-4 rounded-xl border text-center text-2xl font-bold tracking-widest outline-none transition-all focus:ring-2 focus:ring-blue-500/20"
+                                        style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={loading || forgotData.otp_code.length !== 6}
+                                        className="w-full py-3 rounded-xl text-white font-bold cursor-pointer disabled:opacity-50"
+                                        style={{ background: 'linear-gradient(135deg, #2563EB 0%, #3B82F6 100%)' }}
+                                    >
+                                        {loading ? 'Đang xác thực...' : 'Xác thực OTP'}
+                                    </button>
+                                </form>
+                            )}
+
+                            {forgotStep === 3 && (
+                                <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    setLoading(true);
+                                    try {
+                                        await api.post('/auth/forgot-password', {
+                                            email: forgotData.email,
+                                            otp_code: forgotData.otp_code,
+                                            new_password: forgotData.new_password
+                                        });
+                                        toast.success('Đặt lại mật khẩu thành công! Hãy đăng nhập lại.');
+                                        setShowForgotModal(false);
+                                        setForgotStep(1);
+                                    } catch (err) {
+                                        toast.error(getApiErrorMessage(err, 'Lỗi đặt lại mật khẩu'));
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }} className="space-y-4">
+                                    <p className="text-sm" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Xác thực thành công. Vui lòng đặt mật khẩu mới.</p>
+                                    <input 
+                                        type="password"
+                                        placeholder="Mật khẩu mới (ít nhất 6 ký tự)"
+                                        required
+                                        minLength="6"
+                                        value={forgotData.new_password}
+                                        onChange={e => setForgotData({...forgotData, new_password: e.target.value})}
+                                        className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
+                                        style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="w-full py-3 rounded-xl text-white font-bold cursor-pointer disabled:opacity-50"
+                                        style={{ background: 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)' }}
+                                    >
+                                        {loading ? 'Đang cập nhật...' : 'Đổi mật khẩu'}
+                                    </button>
+                                </form>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

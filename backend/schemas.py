@@ -26,6 +26,8 @@ class UserResponse(BaseModel):
 class UserUpdate(BaseModel):
     display_name: Optional[str] = None
     email: Optional[EmailStr] = None
+    password: Optional[str] = Field(None, min_length=6)
+    otp_code: Optional[str] = None
     avatar_url: Optional[str] = None
     cover_url: Optional[str] = None
 
@@ -166,3 +168,18 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class OTPSendRequest(BaseModel):
+    email: EmailStr
+    purpose: str # forgot_password | change_email | change_password
+
+class OTPVerifyRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    purpose: str
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    new_password: str = Field(..., min_length=6)
+

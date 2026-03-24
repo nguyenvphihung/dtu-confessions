@@ -4,10 +4,78 @@ from database import get_db
 from auth import hash_password, verify_password, create_access_token, create_refresh_token, ACCESS_TOKEN_EXPIRE_MINUTES
 import os
 from jose import jwt
+from datetime import datetime, timedelta
+from utils.email_utils import generate_otp, send_otp_email
 import models
 import schemas
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+@router.post("/otp/send")
+def send_otp(request: schemas.OTPSendRequest, db: Session = Depends(get_db)):
+    # If purpose is forgot_password, check if user exists
+    if request.purpose == "forgot_password":
+        user = db.query(models.User).filter(models.User.email == request.email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản với email này")
+    
+    otp_code = generate_otp()
+    expires_at = datetime.now() + timedelta(minutes=5)
+    
+    # Deactivate old OTPs for this email/purpose
+    db.query(models.OTPVerification).filter(
+        models.OTPVerification.email == request.email,
+        models.OTPVerification.purpose == request.purpose
+    ).delete()
+    
+    new_otp = models.OTPVerification(
+        email=request.email,
+        otp_code=otp_code,
+        purpose=request.purpose,
+        expires_at=expires_at
+    )
+    db.add(new_otp)
+    db.commit()
+    
+    send_otp_email(request.email, otp_code, request.purpose)
+    return {"message": "Mã OTP đã được gửi"}
+
+@router.post("/otp/verify")
+def verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(get_db)):
+    otp = db.query(models.OTPVerification).filter(
+        models.OTPVerification.email == request.email,
+        models.OTPVerification.otp_code == request.otp_code,
+        models.OTPVerification.purpose == request.purpose,
+        models.OTPVerification.expires_at > datetime.now()
+    ).first()
+    
+    if not otp:
+        raise HTTPException(status_code=400, detail="Mã OTP không chính xác hoặc đã hết hạn")
+    
+    otp.is_verified = True
+    db.commit()
+    return {"message": "Xác thực thành công"}
+
+@router.post("/forgot-password")
+def forgot_password_reset(request: schemas.PasswordResetRequest, db: Session = Depends(get_db)):
+    otp = db.query(models.OTPVerification).filter(
+        models.OTPVerification.email == request.email,
+        models.OTPVerification.otp_code == request.otp_code,
+        models.OTPVerification.purpose == "forgot_password",
+        models.OTPVerification.is_verified == True
+    ).first()
+    
+    if not otp:
+        raise HTTPException(status_code=400, detail="Vui lòng xác thực OTP trước")
+    
+    user = db.query(models.User).filter(models.User.email == request.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+    
+    user.password_hash = hash_password(request.new_password)
+    db.delete(otp) # Cleanup
+    db.commit()
+    return {"message": "Đặt lại mật khẩu thành công"}
 
 @router.post("/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):

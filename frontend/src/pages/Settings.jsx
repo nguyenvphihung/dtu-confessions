@@ -9,8 +9,10 @@ import { toast } from 'react-toastify';
 export function Settings() {
     const { isDark, toggleTheme } = useTheme();
     const { user } = useAuth();
-    const [showPasswordModal, setShowPasswordModal] = useState(false);
-    const [passwordData, setPasswordData] = useState({ old_password: '', new_password: '', confirm_password: '' });
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [otpPurpose, setOtpPurpose] = useState('');
+    const [pendingData, setPendingData] = useState(null);
+    const [otpCode, setOtpCode] = useState('');
     const [loading, setLoading] = useState(false);
 
     const sectionStyle = {
@@ -20,22 +22,43 @@ export function Settings() {
             : '0 2px 20px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04)',
     };
 
-    const handlePasswordChange = async (e) => {
-        e.preventDefault();
-        if (passwordData.new_password !== passwordData.confirm_password) {
-            return toast.error('Mật khẩu xác nhận không khớp');
-        }
-        setLoading(true);
+    const handleSendOtp = async (purpose, data) => {
         try {
-            await api.post('/users/password', {
-                old_password: passwordData.old_password,
-                new_password: passwordData.new_password
+            setLoading(true);
+            await api.post('/auth/otp/send', { 
+                email: user.email, // Always send OTP to the CURRENT authenticated user's email for authorization
+                purpose 
             });
-            toast.success('Đổi mật khẩu thành công');
-            setShowPasswordModal(false);
-            setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+            setOtpPurpose(purpose);
+            setPendingData(data);
+            setShowOtpModal(true);
+            toast.info('Mã OTP đã được gửi đến email của bạn');
         } catch (err) {
-            toast.error(getApiErrorMessage(err, 'Lỗi đổi mật khẩu'));
+            toast.error(getApiErrorMessage(err, 'Lỗi gửi OTP'));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyAndSave = async () => {
+        try {
+            setLoading(true);
+            // 1. Verify OTP
+            await api.post('/auth/otp/verify', { 
+                email: user.email, 
+                otp_code: otpCode, 
+                purpose: otpPurpose 
+            });
+            
+            // 2. Save Changes
+            await api.put('/users/me', { ...pendingData, otp_code: otpCode });
+            
+            toast.success('Cập nhật thành công');
+            setShowOtpModal(false);
+            setOtpCode('');
+            setPendingData(null);
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, 'Xác thực hoặc cập nhật thất bại'));
         } finally {
             setLoading(false);
         }
@@ -49,105 +72,105 @@ export function Settings() {
                 className="text-2xl mb-6 font-bold"
                 style={{ color: isDark ? '#F1F5F9' : '#1A1A2E', fontFamily: 'Poppins, sans-serif' }}
             >
-                Cài đặt
+                Cài đặt tài khoản
             </motion.h1>
 
-            <div className="flex flex-col gap-4">
-                {/* Giao diện */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="rounded-2xl p-5"
-                    style={sectionStyle}
-                >
-                    <h2 className="text-sm font-semibold mb-4 text-gray-500 uppercase tracking-wider relative flex items-center gap-2">
-                        Giao diện
-                    </h2>
-                    
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="font-medium" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Chế độ tối</div>
-                            <div className="text-sm" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Giảm độ sáng và giúp mắt dễ chịu hơn</div>
-                        </div>
-                        <button
-                            onClick={toggleTheme}
-                            className="w-12 h-6 rounded-full relative transition-colors duration-200"
-                            style={{ background: isDark ? '#E53E3E' : '#E2E8F0' }}
-                        >
-                            <div
-                                className="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform duration-200"
-                                style={{ transform: isDark ? 'translateX(26px)' : 'translateX(4px)' }}
-                            />
-                        </button>
-                    </div>
-                </motion.div>
-                
-                {/* Thông tin cá nhân */}
+            <div className="flex flex-col gap-6">
+                {/* Thông tin cá nhân & Bảo mật */}
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 }}
-                    className="rounded-2xl p-5"
+                    className="rounded-2xl p-6"
                     style={sectionStyle}
                 >
-                    <h2 className="text-sm font-semibold mb-4 text-gray-500 uppercase tracking-wider">
-                        Thông tin cá nhân
-                    </h2>
-                    
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
+                            <Shield size={20} />
+                        </div>
+                        <h2 className="text-lg font-bold" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Thông tin & Bảo mật</h2>
+                    </div>
+
                     <form 
                         onSubmit={async (e) => {
                             e.preventDefault();
                             const formData = new FormData(e.target);
                             const display_name = formData.get('display_name');
                             const email = formData.get('email');
+                            const password = formData.get('password');
                             
-                            setLoading(true);
-                            try {
-                                await api.put('/users/me', { display_name, email });
-                                toast.success('Cập nhật thông tin thành công');
-                            } catch (err) {
-                                toast.error(getApiErrorMessage(err, 'Lỗi cập nhật thông tin'));
-                            } finally {
-                                setLoading(false);
+                            const data = { display_name };
+                            
+                            // If email or password changed, we need OTP
+                            if (email !== user.email || password) {
+                                if (email !== user.email) data.email = email;
+                                if (password) data.password = password;
+                                
+                                const purpose = email !== user.email ? 'change_email' : 'change_password';
+                                handleSendOtp(purpose, data);
+                            } else {
+                                // Just simple display name update
+                                try {
+                                    setLoading(true);
+                                    await api.put('/users/me', data);
+                                    toast.success('Cập nhật tên hiển thị thành công');
+                                } catch (err) {
+                                    toast.error(getApiErrorMessage(err, 'Lỗi cập nhật'));
+                                } finally {
+                                    setLoading(false);
+                                }
                             }
                         }}
-                        className="space-y-4"
+                        className="space-y-5"
                     >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className="block text-sm font-medium mb-2" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Tên hiển thị</label>
+                                <input 
+                                    name="display_name"
+                                    type="text"
+                                    defaultValue={user?.display_name || ''}
+                                    className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
+                                    style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Email liên kết</label>
+                                <input 
+                                    name="email"
+                                    type="email"
+                                    defaultValue={user?.email || ''}
+                                    className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
+                                    style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                />
+                            </div>
+                        </div>
+
                         <div>
-                            <label className="block text-sm font-medium mb-1.5" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Tên hiển thị</label>
+                            <label className="block text-sm font-medium mb-2" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Mật khẩu mới (Để trống nếu không đổi)</label>
                             <input 
-                                name="display_name"
-                                type="text"
-                                defaultValue={user?.display_name || ''}
-                                className="w-full px-4 py-2 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
+                                name="password"
+                                type="password"
+                                placeholder="••••••••"
+                                className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
                                 style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1.5" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Email</label>
-                            <input 
-                                name="email"
-                                type="email"
-                                defaultValue={user?.email || ''}
-                                className="w-full px-4 py-2 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
-                                style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
-                            />
-                        </div>
-                        <div className="flex justify-end">
+
+                        <div className="flex justify-end pt-2">
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="px-6 py-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-red-500/25 cursor-pointer disabled:opacity-50"
+                                className="px-8 py-3 rounded-xl font-bold text-white transition-all shadow-lg hover:shadow-red-500/25 cursor-pointer disabled:opacity-50"
                                 style={{ background: 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)' }}
                             >
-                                {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                                {loading ? 'Đang xử lý...' : 'Lưu tất cả thay đổi'}
                             </button>
                         </div>
                     </form>
                 </motion.div>
 
-                {/* Tài khoản */}
+                {/* Tài khoản section (fixed structure) */}
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -169,7 +192,7 @@ export function Settings() {
                                 <div className="text-sm" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Cập nhật mật khẩu bảo vệ tài khoản</div>
                             </div>
                             <button 
-                                onClick={() => setShowPasswordModal(true)}
+                                // onClick={() => setShowPasswordModal(true)} // Removed old password modal trigger
                                 className="text-sm px-4 py-1.5 rounded-lg border hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" 
                                 style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
                             >
@@ -222,15 +245,15 @@ export function Settings() {
                 </motion.div>
             </div>
 
-            {/* Password Modal */}
+            {/* OTP Modal */}
             <AnimatePresence>
-                {showPasswordModal && (
+                {showOtpModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setShowPasswordModal(false)}
+                            onClick={() => setShowOtpModal(false)}
                             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                         />
                         <motion.div
@@ -245,67 +268,49 @@ export function Settings() {
                                     <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
                                         <Lock size={20} />
                                     </div>
-                                    <h3 className="font-bold text-lg" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E', fontFamily: 'Poppins, sans-serif' }}>Đổi mật khẩu</h3>
+                                    <h3 className="font-bold text-lg" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Xác thực OTP</h3>
                                 </div>
-                                <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors cursor-pointer">
+                                <button onClick={() => setShowOtpModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors cursor-pointer">
                                     <X size={20} style={{ color: isDark ? '#64748B' : '#94A3B8' }} />
                                 </button>
                             </div>
 
-                            <form onSubmit={handlePasswordChange} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1.5" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Mật khẩu cũ</label>
-                                    <input 
-                                        type="password"
-                                        required
-                                        value={passwordData.old_password}
-                                        onChange={e => setPasswordData({...passwordData, old_password: e.target.value})}
-                                        className="w-full px-4 py-2.5 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
-                                        style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1.5" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Mật khẩu mới</label>
-                                    <input 
-                                        type="password"
-                                        required
-                                        value={passwordData.new_password}
-                                        onChange={e => setPasswordData({...passwordData, new_password: e.target.value})}
-                                        className="w-full px-4 py-2.5 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
-                                        style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1.5" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Xác nhận mật khẩu mới</label>
-                                    <input 
-                                        type="password"
-                                        required
-                                        value={passwordData.confirm_password}
-                                        onChange={e => setPasswordData({...passwordData, confirm_password: e.target.value})}
-                                        className="w-full px-4 py-2.5 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
-                                        style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
-                                    />
-                                </div>
+                            <div className="text-center mb-6">
+                                <p style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
+                                    Vì lý do bảo mật, một mã OTP đã được gửi đến email <strong>{user.email}</strong> để xác nhận thay đổi quan trọng này.
+                                </p>
+                            </div>
 
-                                <div className="mt-8 flex gap-3">
+                            <div className="space-y-4">
+                                <input 
+                                    type="text"
+                                    maxLength="6"
+                                    placeholder="Nhập 6 số"
+                                    value={otpCode}
+                                    onChange={e => setOtpCode(e.target.value)}
+                                    className="w-full px-4 py-4 rounded-xl border text-center text-3xl font-bold tracking-[0.5em] outline-none transition-all focus:ring-2 focus:ring-blue-500/20"
+                                    style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                />
+
+                                <div className="flex gap-3">
                                     <button
                                         type="button"
-                                        onClick={() => setShowPasswordModal(false)}
+                                        onClick={() => setShowOtpModal(false)}
                                         className="flex-1 py-3 rounded-xl font-semibold transition-all cursor-pointer"
                                         style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
                                     >
                                         Hủy
                                     </button>
                                     <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="flex-1 py-3 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-red-500/25 cursor-pointer disabled:opacity-50"
-                                        style={{ background: 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)' }}
+                                        onClick={handleVerifyAndSave}
+                                        disabled={loading || otpCode.length !== 6}
+                                        className="flex-1 py-3 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-blue-500/25 cursor-pointer disabled:opacity-50"
+                                        style={{ background: 'linear-gradient(135deg, #2563EB 0%, #3B82F6 100%)' }}
                                     >
-                                        {loading ? 'Đang cập nhật...' : 'Cập nhật'}
+                                        {loading ? 'Đang xác thực...' : 'Xác thực & Lưu'}
                                     </button>
                                 </div>
-                            </form>
+                            </div>
                         </motion.div>
                     </div>
                 )}
