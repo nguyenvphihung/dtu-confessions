@@ -28,6 +28,10 @@ class UserUpdate(BaseModel):
     avatar_url: Optional[str] = None
     cover_url: Optional[str] = None
 
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=6)
+
 
 
 class Token(BaseModel):

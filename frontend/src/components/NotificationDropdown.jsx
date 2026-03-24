@@ -72,7 +72,7 @@ export function NotificationDropdown({ inRightbar = false }) {
             } catch { /* ignore */ }
         }
         if (notification.ref_type === 'post' && notification.ref_id) {
-            navigate(`/post/${notification.ref_id}`);
+            navigate(`/?search=${notification.ref_id}`);
         }
         setIsOpen(false);
     };
@@ -169,10 +169,10 @@ export function NotificationDropdown({ inRightbar = false }) {
                                     const iconInfo = NOTIFICATION_ICONS[n.type] || { icon: Bell, color: '#64748B' };
                                     const Icon = iconInfo.icon;
                                     return (
-                                        <button
+                                        <div
                                             key={n.id}
                                             onClick={() => handleClickNotification(n)}
-                                            className="w-full flex items-start gap-3 px-4 py-3 text-left cursor-pointer transition-colors"
+                                            className="w-full flex items-start gap-3 px-4 py-3 text-left cursor-pointer transition-colors relative group"
                                             style={{
                                                 background: n.is_read ? 'transparent' : isDark ? 'rgba(229, 62, 62, 0.04)' : 'rgba(229, 62, 62, 0.03)',
                                                 borderBottom: isDark ? '1px solid rgba(255,255,255,0.03)' : '1px solid rgba(0,0,0,0.03)',
@@ -195,9 +195,25 @@ export function NotificationDropdown({ inRightbar = false }) {
                                                 </span>
                                             </div>
                                             {!n.is_read && (
-                                                <div className="flex-shrink-0 w-2 h-2 rounded-full mt-2" style={{ background: '#E53E3E' }} />
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full mt-2" style={{ background: '#E53E3E' }} />
+                                                    <button 
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            try {
+                                                                await markAsRead(n.id);
+                                                                setNotifications(prev => prev.map(notif => notif.id === n.id ? { ...notif, is_read: true } : notif));
+                                                                setUnreadCount(prev => Math.max(0, prev - 1));
+                                                            } catch { /* ignore */ }
+                                                        }}
+                                                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                                        title="Đánh dấu đã đọc"
+                                                    >
+                                                        <CheckCheck size={14} style={{ color: isDark ? '#64748B' : '#94A3B8' }} />
+                                                    </button>
+                                                </div>
                                             )}
-                                        </button>
+                                        </div>
                                     );
                                 })
                             )}

@@ -10,6 +10,7 @@ import { uploadProfileImage } from '../api/media';
 import { updateProfile } from '../api/auth';
 import { useParams } from 'react-router-dom';
 import { UserAvatar } from '../components/UserAvatar';
+import { PostSkeleton } from '../components/PostSkeleton';
 
 export function Profile() {
     const { userId } = useParams();
@@ -211,12 +212,18 @@ export function Profile() {
             </motion.div>
 
             {loading ? (
-                <div className="flex justify-center py-12">
-                    <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#C53030', borderTopColor: 'transparent' }} />
+                <div>
+                   {[1, 2].map(n => <PostSkeleton key={n} />)}
                 </div>
             ) : posts.length === 0 ? (
-                <div className="text-center py-12" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
-                    <p style={{ fontFamily: 'Poppins, sans-serif', fontSize: '1rem' }}>{isOwner ? 'Bạn chưa đăng confession nào' : 'Chưa có bài viết nào'}</p>
+                <div className="text-center py-16 rounded-2xl" style={{ ...cardStyle, color: isDark ? '#64748B' : '#94A3B8' }}>
+                    <div className="mb-4 opacity-20 flex justify-center">
+                        <Hash size={48} />
+                    </div>
+                    <p style={{ fontFamily: 'Poppins, sans-serif', fontSize: '1.1rem', fontWeight: 600 }}>
+                        {isOwner ? 'Bạn chưa chia sẻ confession nào' : 'Người dùng này chưa có bài viết nào'}
+                    </p>
+                    <p className="text-sm mt-1">Những kỷ niệm và chia sẻ sẽ xuất hiện tại đây.</p>
                 </div>
             ) : (
                 posts.map((post, index) => (

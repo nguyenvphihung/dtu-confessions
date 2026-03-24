@@ -42,3 +42,18 @@ def update_my_profile(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+@router.post("/password")
+def update_password(
+    data: schemas.PasswordChange,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    from auth import verify_password, hash_password
+    if not verify_password(data.old_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Mật khẩu cũ không chính xác")
+        
+    current_user.password_hash = hash_password(data.new_password)
+    db.add(current_user)
+    db.commit()
+    return {"message": "Đổi mật khẩu thành công"}

@@ -151,12 +151,16 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
             and_(models.Post.is_anonymous == False, models.User.student_id.ilike(search_fmt))
         ]
 
-        if search.isdigit():
-            filters.append(models.Post.confession_number == int(search))
-        elif search.lower().startswith("dtu_cfs_") and search[8:].isdigit():
-            filters.append(models.Post.confession_number == int(search[8:]))
-        elif search.lower().startswith("#dtu_cfs_") and search[9:].isdigit():
-            filters.append(models.Post.confession_number == int(search[9:]))
+        # Clean search for confession number matching
+        clean_search = search.strip().lower()
+        if clean_search.startswith("#"):
+            clean_search = clean_search[1:]
+        if clean_search.startswith("dtu_cfs_"):
+            clean_search = clean_search[8:]
+        
+        if clean_search.isdigit():
+            filters.append(models.Post.confession_number == int(clean_search))
+            filters.append(models.Post.id == int(clean_search))
 
         query = query.filter(or_(*filters))
 
