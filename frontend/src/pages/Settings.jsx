@@ -82,6 +82,70 @@ export function Settings() {
                         </button>
                     </div>
                 </motion.div>
+                
+                {/* Thông tin cá nhân */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="rounded-2xl p-5"
+                    style={sectionStyle}
+                >
+                    <h2 className="text-sm font-semibold mb-4 text-gray-500 uppercase tracking-wider">
+                        Thông tin cá nhân
+                    </h2>
+                    
+                    <form 
+                        onSubmit={async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.target);
+                            const display_name = formData.get('display_name');
+                            const email = formData.get('email');
+                            
+                            setLoading(true);
+                            try {
+                                await api.put('/users/me', { display_name, email });
+                                toast.success('Cập nhật thông tin thành công');
+                            } catch (err) {
+                                toast.error(getApiErrorMessage(err, 'Lỗi cập nhật thông tin'));
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}
+                        className="space-y-4"
+                    >
+                        <div>
+                            <label className="block text-sm font-medium mb-1.5" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Tên hiển thị</label>
+                            <input 
+                                name="display_name"
+                                type="text"
+                                defaultValue={user?.display_name || ''}
+                                className="w-full px-4 py-2 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
+                                style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1.5" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Email</label>
+                            <input 
+                                name="email"
+                                type="email"
+                                defaultValue={user?.email || ''}
+                                className="w-full px-4 py-2 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
+                                style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                            />
+                        </div>
+                        <div className="flex justify-end">
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="px-6 py-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-red-500/25 cursor-pointer disabled:opacity-50"
+                                style={{ background: 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)' }}
+                            >
+                                {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                            </button>
+                        </div>
+                    </form>
+                </motion.div>
 
                 {/* Tài khoản */}
                 <motion.div

@@ -272,6 +272,12 @@ def delete_post(post_id: int, db: Session = Depends(get_db), current_user: model
     if post.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="Bạn không có quyền xóa bài post này")
     
+    # Cleanup notifications
+    db.query(models.Notification).filter(
+        models.Notification.ref_type == "post",
+        models.Notification.ref_id == post_id
+    ).delete()
+    
     db.delete(post)
     db.commit()
     return None

@@ -33,6 +33,12 @@ def update_my_profile(
 ):
     if user_update.display_name is not None:
         current_user.display_name = user_update.display_name
+    if user_update.email is not None and user_update.email != current_user.email:
+        # Check if email is already taken
+        existing_email = db.query(models.User).filter(models.User.email == user_update.email).first()
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email này đã được sử dụng")
+        current_user.email = user_update.email
     if user_update.avatar_url is not None:
         current_user.avatar_url = user_update.avatar_url
     if user_update.cover_url is not None:

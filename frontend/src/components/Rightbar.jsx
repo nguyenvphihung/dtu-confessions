@@ -30,15 +30,6 @@ export function Rightbar() {
 
             {/* Bottom */}
             <div className="flex flex-col items-center gap-4">
-                <button
-                    onClick={toggleTheme}
-                    className="p-3 rounded-xl transition-all duration-200 cursor-pointer"
-                    style={{ color: isDark ? '#94A3B8' : '#64748B' }}
-                    title={isDark ? 'Giao diện sáng' : 'Giao diện tối'}
-                >
-                    {isDark ? <Sun size={22} /> : <Moon size={22} />}
-                </button>
-
                 <NavLink
                     to="/settings"
                     className={({ isActive }) =>
