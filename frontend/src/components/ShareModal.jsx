@@ -147,8 +147,11 @@ export function ShareModal({ open, onClose, post }) {
                                     <button
                                         onClick={handleShare}
                                         disabled={isSubmitting}
-                                        className="px-6 py-2 rounded-lg font-semibold text-white transition-opacity disabled:opacity-50"
-                                        style={{ background: '#0866FF' }} // Facebook blue
+                                        className="px-6 py-2 rounded-lg font-semibold text-white transition-all disabled:opacity-50 hover:scale-105 active:scale-95"
+                                        style={{ 
+                                            background: 'linear-gradient(135deg, #E53E3E 0%, #FF6B6B 100%)',
+                                            boxShadow: '0 4px 15px rgba(229, 62, 62, 0.35)'
+                                        }}
                                     >
                                         {isSubmitting ? 'Đang chia sẻ...' : 'Chia sẻ ngay'}
                                     </button>

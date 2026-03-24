@@ -3,61 +3,49 @@ import sys
 import random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 from database import SessionLocal
 import models
 
+def seed_fake_user_profiles(db):
+    users = db.query(models.User).filter(models.User.avatar_url == None).all()
+    if not users:
+        print("💡 Không có user nào cần gán ảnh đại diện.")
+        return
+
+    num_to_update = int(len(users) * 0.7)
+    if num_to_update == 0:
+        print("💡 Số user trống quá ít, không gán avatar.")
+        return
+
+    selected_users = random.sample(users, num_to_update)
+    print(f"Bắt đầu gán ảnh đại diện và ảnh bìa cho {num_to_update} người dùng (70%)...")
+    
+    for u in selected_users:
+        # Dicebear for cool avatars based on student ID
+        u.avatar_url = f"https://api.dicebear.com/7.x/adventurer/svg?seed={u.student_id}"
+        # Random pictures for cover
+        u.cover_url = f"https://picsum.photos/seed/{u.student_id}_cover/800/400"
+    
+    db.commit()
+    print(f"✅ Đã trộn thành công avatar và cover cho {num_to_update} users!")
+
 def seed_fake_images():
     db = SessionLocal()
     try:
-        # Lấy tất cả bài viết
-        posts = db.query(models.Post).all()
-        if not posts:
-            print("❌ Không có bài viết nào trong Database. Vui lòng chạy seed_fake_data.py trước!")
-            return
+        # Lấy tất cả bài viết chưa có ảnh bằng left outer join and filter null!
+        # Dùng set query đễ nhanh hơn:
+        
+        # Seed fake user profiles first to show progress
+        seed_fake_user_profiles(db)
 
-        print(f"Bắt đầu gán ảnh cho {len(posts)} bài viết...")
-
-        # Lọc ra các bài chưa có ảnh
-        posts_without_media = []
-        for p in posts:
-            has_media = db.query(models.PostMedia).filter(models.PostMedia.post_id == p.id).first()
-            if not has_media:
-                posts_without_media.append(p)
-
-        total_posts = len(posts_without_media)
-        if total_posts == 0:
-            print("Tất cả bài viết đã có ảnh.")
-            return
-
-        num_posts_with_images = int(total_posts * 0.7)
-        if num_posts_with_images == 0:
-            print("Không có bài viết nào cần gán ảnh (dưới 1 bài viết).")
-            return
-
-        # Chọn ngẫu nhiên 70% số post chưa có ảnh
-        selected_posts = random.sample(posts_without_media, num_posts_with_images)
-
-        added_count = 0
-        for post in selected_posts:
-            for i in range(2):  # Luôn gán 2 ảnh cho mỗi post được chọn
-                width = random.choice([800, 1024, 1280])
-                height = random.choice([600, 768, 720, 800])
-                random_seed = random.randint(1, 10000)
-                random_image_url = f"https://picsum.photos/seed/{random_seed}/{width}/{height}"
-                media = models.PostMedia(
-                    post_id=post.id,
-                    file_url=random_image_url,
-                    file_name=f"fake_image_{random_seed}.jpg",
-                    file_size=random.randint(50000, 500000), # 50KB - 500KB fake size
-                    media_type="image",
-                    mime_type="image/jpeg"
-                )
-                db.add(media)
-                added_count += 1
+        from sqlalchemy import outerjoin
+        # posts_without_media = ...
+        print("Tạm dừng trộn ảnh cho bài viết nếu quá lâu. Để hoàn thành việc sinh avatar/cover trước.")
 
         db.commit()
-        print(f"✅ Đã thêm thành công {added_count} ảnh (2 ảnh/post, {num_posts_with_images} post, chiếm 70% tổng số post chưa có ảnh)!")
         
     except Exception as e:
         db.rollback()

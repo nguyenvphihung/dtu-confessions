@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { PenSquare } from 'lucide-react';
 import { PostCard } from '../components/PostCard';
 import { CreatePostModal } from '../components/CreatePostModal';
+import { UserAvatar } from '../components/UserAvatar';
 import { ReelsBar } from '../components/ReelsBar';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -85,12 +86,11 @@ export function Feed() {
                     onClick={() => setShowCreate(true)}
                 >
                     <div className="flex items-center gap-3">
-                        <div
-                            className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #E53E3E 0%, #FF6B6B 100%)' }}
-                        >
-                            {(user?.display_name || user?.student_id || 'U').charAt(0).toUpperCase()}
-                        </div>
+                        <UserAvatar 
+                            user={user}
+                            sizeClasses="w-11 h-11"
+                            fontSize="1rem"
+                        />
                         <div
                             className="flex-1 px-4 py-2.5 rounded-xl cursor-text transition-colors"
                             style={{
