@@ -17,39 +17,57 @@ def _success(data=None, message="Thành công"):
     }
 
 @router.post("/api/posts/{post_id}/like", status_code=status.HTTP_200_OK)
-def like_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def like_post(post_id: int, type: str = "like", db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài viết")
     
     existing = db.query(models.Interaction).filter(
         models.Interaction.user_id == current_user.id,
-        models.Interaction.post_id == post_id,
-        models.Interaction.interaction_type == "like"
+        models.Interaction.post_id == post_id
     ).first()
 
     if existing:
-        db.delete(existing)
-        db.commit()
-        like_count = db.query(func.count(models.Interaction.id)).filter(
-            models.Interaction.post_id == post_id,
-            models.Interaction.interaction_type == "like"
-        ).scalar() or 0
-        return _success(
-            data={"status": "unliked", "post_id": post_id, "like_count": int(like_count)},
-            message="Đã bỏ like bài viết"
-        )
+        if existing.interaction_type == type:
+            db.delete(existing)
+            db.commit()
+            like_count = db.query(func.count(models.Interaction.id)).filter(
+                models.Interaction.post_id == post_id
+            ).scalar() or 0
+            return _success(
+                data={"status": "unliked", "post_id": post_id, "like_count": int(like_count), "reaction_type": None},
+                message="Đã bỏ tương tác"
+            )
+        else:
+            existing.interaction_type = type
+            db.commit()
+            like_count = db.query(func.count(models.Interaction.id)).filter(
+                models.Interaction.post_id == post_id
+            ).scalar() or 0
+            if post.author_id != current_user.id:
+                liker_name = current_user.display_name or current_user.student_id
+                create_notification(
+                    db=db,
+                    user_id=post.author_id,
+                    notification_type="new_like",
+                    message=f"{liker_name} đã thả cảm xúc vào confession của bạn",
+                    ref_type="post",
+                    ref_id=post_id,
+                )
+            return _success(
+                data={"status": "liked", "post_id": post_id, "like_count": int(like_count), "reaction_type": type},
+                message="Đã đổi tương tác"
+            )
 
     interaction = models.Interaction(
         user_id=current_user.id,
         post_id=post_id,
-        interaction_type="like"
+        interaction_type=type
     )
     db.add(interaction)
     db.commit()
     like_count = db.query(func.count(models.Interaction.id)).filter(
-        models.Interaction.post_id == post_id,
-        models.Interaction.interaction_type == "like"
+        models.Interaction.post_id == post_id
     ).scalar() or 0
 
     # Notify post author
@@ -59,7 +77,7 @@ def like_post(post_id: int, db: Session = Depends(get_db), current_user: models.
             db=db,
             user_id=post.author_id,
             notification_type="new_like",
-            message=f"{liker_name} đã thích confession của bạn",
+            message=f"{liker_name} đã thả cảm xúc vào confession của bạn",
             ref_type="post",
             ref_id=post_id,
         )
@@ -68,9 +86,10 @@ def like_post(post_id: int, db: Session = Depends(get_db), current_user: models.
         data={
             "status": "liked",
             "post_id": post_id,
-            "like_count": int(like_count)
+            "like_count": int(like_count),
+            "reaction_type": type
         },
-        message="Đã like bài viết"
+        message="Đã tương tác thành công"
     )
 
 @router.delete("/api/posts/{post_id}/like", status_code=status.HTTP_200_OK)

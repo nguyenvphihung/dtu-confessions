@@ -7,6 +7,7 @@ import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { useDebouncedAction } from '../hooks/useDebouncedAction';
+import { UserAvatar } from './UserAvatar';
 
 const timeAgo = (dateString) => {
     const now = new Date();
@@ -102,12 +103,11 @@ const CommentItem = ({ comment, entityType, entityId, isDark, onReplySuccess, de
             )}
 
             <div className="flex gap-2 relative z-10">
-                <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5"
-                    style={{ background: 'linear-gradient(135deg, #E53E3E 0%, #C53030 100%)' }}
-                >
-                    {(comment.user?.display_name || comment.user?.student_id || 'U').charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar 
+                    user={comment.user}
+                    sizeClasses="w-7 h-7 mt-0.5"
+                    fontSize="0.75rem"
+                />
                 <div className="flex-1 min-w-0">
                     <div
                         className="px-3 py-2 rounded-xl inline-block text-left"
@@ -313,12 +313,11 @@ export function CommentSection({ postId, entityType = 'post', entityId, isOpen, 
                 >
                     {/* Comment Input */}
                     <form onSubmit={handleSubmit} className="flex items-center gap-2 mb-4">
-                        <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #E53E3E 0%, #FF6B6B 100%)' }}
-                        >
-                            {(user?.display_name || user?.student_id || 'U').charAt(0).toUpperCase()}
-                        </div>
+                        <UserAvatar 
+                            user={user}
+                            sizeClasses="w-8 h-8"
+                            fontSize="0.8rem"
+                        />
                         <input
                             type="text"
                             value={newComment}

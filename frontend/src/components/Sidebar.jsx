@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from './CreatePostModal';
 import { NotificationDropdown } from './NotificationDropdown';
 import { motion, AnimatePresence } from 'motion/react';
+import { UserAvatar } from './UserAvatar';
 
 const navItems = [
     { to: '/', icon: Home, label: 'Trang chủ' },
@@ -126,12 +127,11 @@ export function Sidebar() {
                             className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
                             style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(79, 142, 247, 0.06)' }}
                         >
-                            <div
-                                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                                style={{ background: 'linear-gradient(135deg, #E53E3E 0%, #FF6B6B 100%)' }}
-                            >
-                                {(user.display_name || user.student_id).charAt(0).toUpperCase()}
-                            </div>
+                            <UserAvatar 
+                                user={user}
+                                sizeClasses="w-9 h-9"
+                                fontSize="0.875rem"
+                            />
                             <div className="flex-1 min-w-0">
                                 <div
                                     className="truncate"

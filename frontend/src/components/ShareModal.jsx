@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Lock, Globe, MessageCircle, Phone, Link, Users, User, Twitter, Smile } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { toast } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
+import { UserAvatar } from './UserAvatar';
 import api from '../api/axios';
 import { getApiErrorMessage } from '../api/axios';
 
@@ -91,9 +92,11 @@ export function ShareModal({ open, onClose, post }) {
                         <div className="p-4 flex flex-col gap-3">
                             {/* User Info & Privacy */}
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-tr from-blue-500 to-red-500 flex items-center justify-center text-white font-bold text-lg">
-                                    {(user?.display_name || user?.student_id || '?').charAt(0).toUpperCase()}
-                                </div>
+                                <UserAvatar 
+                                    user={user} 
+                                    sizeClasses="w-12 h-12 flex-shrink-0"
+                                    fontSize="1.125rem"
+                                />
                                 <div>
                                     <div className="font-semibold text-base mb-1" style={{ color: isDark ? '#E4E6EB' : '#1C1E21' }}>
                                         {user?.display_name || user?.student_id}

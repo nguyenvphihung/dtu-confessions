@@ -73,6 +73,7 @@ class PostResponse(BaseModel):
     like_count: int = 0
     comment_count: int = 0
     user_liked: bool = False
+    user_reaction: Optional[str] = None
     media: List[PostMediaResponse] = []
     shared_post: Optional["PostResponse"] = None
 

@@ -9,6 +9,7 @@ import { toast } from 'react-toastify';
 import { uploadProfileImage } from '../api/media';
 import { updateProfile } from '../api/auth';
 import { useParams } from 'react-router-dom';
+import { UserAvatar } from '../components/UserAvatar';
 
 export function Profile() {
     const { userId } = useParams();
@@ -124,7 +125,8 @@ export function Profile() {
                 {/* Profile Info */}
                 <div className="px-4 sm:px-5 pb-5">
                     <div className="flex items-end gap-3 sm:gap-4 -mt-10 mb-4 relative z-10">
-                        <div
+                        <UserAvatar 
+                            user={profileUser}
                             onClick={() => {
                                 if (isOwner) {
                                     avatarInputRef.current?.click();
@@ -132,19 +134,17 @@ export function Profile() {
                                     window.open(profileUser.avatar_url, '_blank');
                                 }
                             }}
-                            className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold border-4 ${isOwner ? 'group cursor-pointer' : (profileUser?.avatar_url ? 'cursor-pointer' : '')} relative overflow-hidden bg-cover bg-center`}
-                            style={{
-                                backgroundImage: profileUser?.avatar_url ? `url(${profileUser.avatar_url})` : 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)',
-                                borderColor: isDark ? '#1A1A24' : '#FFFFFF',
-                            }}
+                            className={`border-4 ${isOwner ? 'group' : ''}`}
+                            style={{ borderColor: isDark ? '#1A1A24' : '#FFFFFF' }}
+                            sizeClasses="w-16 h-16 sm:w-20 sm:h-20"
+                            fontSize="1.5rem"
                         >
-                            {!profileUser?.avatar_url && (profileUser?.display_name || profileUser?.student_id || 'U').charAt(0).toUpperCase()}
                             {isOwner && (
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full text-white">
                                     {uploadingAvatar ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
                                 </div>
                             )}
-                        </div>
+                        </UserAvatar>
                         {isOwner && <input type="file" ref={avatarInputRef} hidden accept="image/*" onChange={handleAvatarUpload} />}
                     </div>
 

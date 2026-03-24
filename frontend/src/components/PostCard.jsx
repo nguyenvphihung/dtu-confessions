@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { CommentSection } from './CommentSection';
 import { CreatePostModal } from './CreatePostModal';
+import { UserAvatar } from './UserAvatar';
 import ImageModal from './ImageModal';
 import { VideoModal } from './VideoModal';
 import { AutoPlayVideo } from './AutoPlayVideo';
@@ -14,6 +15,13 @@ import { createReport } from '../api/reports';
 import { ShareModal } from './ShareModal';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
+
+const REACTION_TYPES = [
+    { id: 'like', icon: '👍', color: '#1877F2', name: 'Thích' },
+    { id: 'wow', icon: '😲', color: '#F7B125', name: 'Wow' },
+    { id: 'sad', icon: '😢', color: '#F7B125', name: 'Buồn' },
+    { id: 'angry', icon: '😡', color: '#E4222E', name: 'Phẫn nộ' }
+];
 
 const formatNumber = (n) => {
     if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
@@ -38,9 +46,22 @@ export function PostCard({ post, index = 0, onDelete }) {
     const navigate = useNavigate();
     const { isDark } = useTheme();
     const { user } = useAuth();
-    const [liked, setLiked] = useState(post.user_liked || false);
+    const [reaction, setReaction] = useState(post.user_reaction || null);
     const [likeCount, setLikeCount] = useState(post.like_count || 0);
+    const [showReactions, setShowReactions] = useState(false);
+    const reactionTimeout = useRef(null);
     const [showComments, setShowComments] = useState(false);
+
+    const handleReactMouseEnter = () => {
+        if (reactionTimeout.current) clearTimeout(reactionTimeout.current);
+        setShowReactions(true);
+    };
+
+    const handleReactMouseLeave = () => {
+        reactionTimeout.current = setTimeout(() => {
+            setShowReactions(false);
+        }, 300);
+    };
     const [commentCount, setCommentCount] = useState(post.comment_count || 0);
     const [expanded, setExpanded] = useState(false);
     const [showImageModal, setShowImageModal] = useState(false);
@@ -88,24 +109,42 @@ export function PostCard({ post, index = 0, onDelete }) {
         }
     };
 
-    const handleLike = async () => {
-        const prevLiked = liked;
+    const handleReact = async (type) => {
+        if (!user) {
+            toast.info('Vui lòng đăng nhập để tương tác!');
+            return;
+        }
+
+        const prevReaction = reaction;
         const prevCount = likeCount;
-        setLiked(!liked);
-        setLikeCount((c) => c + (liked ? -1 : 1));
-        
+
+        let newReaction = type;
+        let newCount = likeCount;
+
+        if (prevReaction === type) {
+            newReaction = null;
+            newCount = Math.max(0, likeCount - 1);
+        } else if (!prevReaction) {
+            newCount = likeCount + 1;
+        }
+
+        setReaction(newReaction);
+        setLikeCount(newCount);
+        setShowReactions(false);
+
         try {
-            const res = await api.post(`/posts/${post.id}/like`);
+            const res = await api.post(`/posts/${post.id}/like?type=${type}`);
             const data = res.data?.data;
             if (data) {
-                if (data.status === 'liked') setLiked(true);
-                else if (data.status === 'unliked') setLiked(false);
+                if (data.status === 'unliked') setReaction(null);
+                else setReaction(data.user_reaction || type);
+                
                 if (typeof data.like_count === 'number') setLikeCount(data.like_count);
             }
         } catch (err) {
-            setLiked(prevLiked);
+            setReaction(prevReaction);
             setLikeCount(prevCount);
-            toast.error(getApiErrorMessage(err, 'Không thể tương tác bài viết'));
+            toast.error(getApiErrorMessage(err, 'Không thể bày tỏ cảm xúc'));
         }
     };
 
@@ -138,26 +177,12 @@ export function PostCard({ post, index = 0, onDelete }) {
                         }
                     }}
                 >
-                    <div className="relative flex-shrink-0">
-                        {isAnonymous ? (
-                            <div
-                                className="w-11 h-11 rounded-full flex items-center justify-center"
-                                style={{ background: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0' }}
-                            >
-                                <UserCircle size={28} style={{ color: isDark ? '#64748B' : '#94A3B8' }} />
-                            </div>
-                        ) : (
-                            <div
-                                className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold"
-                                style={{
-                                    background: 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)',
-                                    fontSize: '0.9rem',
-                                }}
-                            >
-                                {displayName.charAt(0).toUpperCase()}
-                            </div>
-                        )}
-                    </div>
+                    <UserAvatar 
+                        user={post.author} 
+                        isAnonymous={isAnonymous} 
+                        sizeClasses="w-11 h-11"
+                        fontSize="0.9rem"
+                    />
                     <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
                             <span
@@ -384,22 +409,64 @@ export function PostCard({ post, index = 0, onDelete }) {
             {/* Actions */}
             <div className="flex items-center justify-between px-3 sm:px-5 py-3">
                 <div className="flex items-center gap-1">
-                    <motion.button
-                        whileTap={{ scale: 0.85 }}
-                        whileHover={{ scale: 1.05 }}
-                        onClick={handleLike}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl cursor-pointer"
-                        style={{
-                            color: liked ? '#FF6B6B' : isDark ? '#64748B' : '#94A3B8',
-                            background: liked ? 'rgba(255, 107, 107, 0.1)' : isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-                            transition: 'color 0.2s ease, background 0.2s ease',
-                        }}
+                    <div 
+                        className="relative flex items-center" 
+                        onMouseEnter={handleReactMouseEnter} 
+                        onMouseLeave={handleReactMouseLeave}
                     >
-                        <Heart size={17} fill={liked ? '#FF6B6B' : 'none'} strokeWidth={liked ? 0 : 1.8} />
-                        <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '0.82rem' }}>
-                            {formatNumber(likeCount)}
-                        </span>
-                    </motion.button>
+                        <AnimatePresence>
+                            {showReactions && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                                    className="absolute bottom-full left-0 mb-2 flex items-center gap-1.5 p-2 rounded-[32px] shadow-lg border z-50 origin-bottom-left"
+                                    style={{
+                                        background: isDark ? '#1E1E2D' : '#FFFFFF',
+                                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+                                    }}
+                                >
+                                    {REACTION_TYPES.map((r, i) => (
+                                        <motion.button
+                                            key={r.id}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: i * 0.04 }}
+                                            whileHover={{ scale: 1.25, originY: 1 }}
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={(e) => { e.stopPropagation(); handleReact(r.id); }}
+                                            className="w-10 h-10 flex items-center justify-center text-[26px] hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+                                            title={r.name}
+                                        >
+                                            {r.icon}
+                                        </motion.button>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        <motion.button
+                            whileTap={{ scale: 0.85 }}
+                            whileHover={{ scale: 1.05 }}
+                            onClick={() => handleReact(reaction || 'like')}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl cursor-pointer"
+                            style={{
+                                color: reaction ? REACTION_TYPES.find(r => r.id === reaction)?.color || '#1877F2' : isDark ? '#64748B' : '#94A3B8',
+                                background: reaction ? `${REACTION_TYPES.find(r => r.id === reaction)?.color || '#1877F2'}1A` : isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+                                transition: 'color 0.2s ease, background 0.2s ease',
+                            }}
+                        >
+                            {reaction ? (
+                                <span className="text-lg leading-none">{REACTION_TYPES.find(r => r.id === reaction)?.icon}</span>
+                            ) : (
+                                <Heart size={17} strokeWidth={1.8} />
+                            )}
+                            <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '0.82rem' }}>
+                                {formatNumber(likeCount)}
+                            </span>
+                        </motion.button>
+                    </div>
 
                     <motion.button
                         whileTap={{ scale: 0.85 }}
