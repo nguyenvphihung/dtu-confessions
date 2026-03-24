@@ -30,11 +30,11 @@ def get_optional_user(token: str = Depends(oauth2_scheme), db: Session = Depends
     except (JWTError, ValueError):
         return None
     
-def __format_post_response(post: models.Post, like_count: int, comment_count: int, user_reaction: Optional[str]) -> dict:
+def __format_post_response(post: models.Post, like_count: int, comment_count: int, share_count: int, user_reaction: Optional[str], top_reactions: List[str] = None) -> dict:
     media_list = []
     if hasattr(post, 'media') and post.media:
         for m in post.media:
-            media_list.append({\
+            media_list.append({
                 "id": m.id,
                 "post_id": m.post_id,
                 "file_url": m.file_url,
@@ -44,6 +44,17 @@ def __format_post_response(post: models.Post, like_count: int, comment_count: in
                 "mime_type": m.mime_type,
                 "created_at": m.created_at
                 })
+    
+    # Calculate top_reactions if not explicitly provided, by analyzing post.interactions if they are loaded
+    if top_reactions is None:
+        if hasattr(post, 'interactions'):
+            from collections import Counter
+            reaction_counts = Counter([i.interaction_type for i in post.interactions])
+            # sort by count descending, then take top 3
+            top_reactions = [r[0] for r in reaction_counts.most_common(3)]
+        else:
+            top_reactions = []
+
     result = {
         "id": post.id,
         "author_id": post.author_id,
@@ -56,8 +67,10 @@ def __format_post_response(post: models.Post, like_count: int, comment_count: in
         "created_at": post.created_at,
         "like_count": like_count,
         "comment_count": comment_count,
+        "share_count": share_count,
         "user_liked": bool(user_reaction),
         "user_reaction": user_reaction,
+        "top_reactions": top_reactions,
         "media": media_list,
         "author": None,
         "shared_post_id": getattr(post, 'shared_post_id', None),
@@ -65,7 +78,7 @@ def __format_post_response(post: models.Post, like_count: int, comment_count: in
     }
 
     if getattr(post, 'shared_post', None) is not None:
-        result["shared_post"] = __format_post_response(post.shared_post, 0, 0, None)
+        result["shared_post"] = __format_post_response(post.shared_post, 0, 0, 0, None)
 
     if not post.is_anonymous and post.author:
         result["author"] = {
@@ -98,10 +111,13 @@ def create_post(post_data: schemas.PostCreate, db: Session = Depends(get_db), cu
     db.commit()
     db.refresh(new_post)
 
-    return __format_post_response(new_post, 0, 0, None)
+    return __format_post_response(new_post, 0, 0, 0, None)
 
 @router.get("/", response_model=List[schemas.PostResponse])
 def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: Session = Depends(get_db), current_user: models.User = Depends(get_optional_user)):
+    from sqlalchemy.orm import aliased
+    SharedPost = aliased(models.Post)
+
     likes_subq = db.query(func.count(models.Interaction.id)).filter(
         models.Interaction.post_id == models.Post.id
     ).correlate(models.Post).as_scalar()
@@ -110,7 +126,11 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
         models.Comment.post_id == models.Post.id
     ).correlate(models.Post).as_scalar()
 
-    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count")).options(
+    shares_subq = db.query(func.count(SharedPost.id)).filter(
+        SharedPost.shared_post_id == models.Post.id
+    ).correlate(models.Post).as_scalar()
+
+    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count"), shares_subq.label("share_count")).options(
         joinedload(models.Post.author), 
         joinedload(models.Post.media),
         joinedload(models.Post.shared_post).joinedload(models.Post.author),
@@ -169,11 +189,11 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
     response = []
     for row in results:
         if current_user:
-            post, like_count, comment_count, user_reaction = row
+            post, like_count, comment_count, share_count, user_reaction = row
         else:
-            post, like_count, comment_count = row
+            post, like_count, comment_count, share_count = row
             user_reaction = None
-        response.append(__format_post_response(post, like_count, comment_count, user_reaction))
+        response.append(__format_post_response(post, like_count, comment_count, share_count, user_reaction))
     return response
 
 @router.get("/user/{user_id}", response_model=List[schemas.PostResponse])
@@ -181,6 +201,9 @@ def get_user_posts(user_id: int, skip: int = 0, limit: int = 20, db: Session = D
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+
+    from sqlalchemy.orm import aliased
+    SharedPost = aliased(models.Post)
 
     likes_subq = db.query(func.count(models.Interaction.id)).filter(
         models.Interaction.post_id == models.Post.id
@@ -190,7 +213,11 @@ def get_user_posts(user_id: int, skip: int = 0, limit: int = 20, db: Session = D
         models.Comment.post_id == models.Post.id
     ).correlate(models.Post).as_scalar()
 
-    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count")).options(
+    shares_subq = db.query(func.count(SharedPost.id)).filter(
+        SharedPost.shared_post_id == models.Post.id
+    ).correlate(models.Post).as_scalar()
+
+    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count"), shares_subq.label("share_count")).options(
         joinedload(models.Post.author), 
         joinedload(models.Post.media),
         joinedload(models.Post.shared_post).joinedload(models.Post.author),
@@ -217,15 +244,18 @@ def get_user_posts(user_id: int, skip: int = 0, limit: int = 20, db: Session = D
     response = []
     for row in results:
         if current_user:
-            post, like_count, comment_count, user_reaction = row
+            post, like_count, comment_count, share_count, user_reaction = row
         else:
-            post, like_count, comment_count = row
+            post, like_count, comment_count, share_count = row
             user_reaction = None
-        response.append(__format_post_response(post, like_count, comment_count, user_reaction))
+        response.append(__format_post_response(post, like_count, comment_count, share_count, user_reaction))
     return response
 
 @router.get("/{post_id}", response_model=schemas.PostResponse)
 def get_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_optional_user)):
+    from sqlalchemy.orm import aliased
+    SharedPost = aliased(models.Post)
+
     likes_subq = db.query(func.count(models.Interaction.id)).filter(
         models.Interaction.post_id == models.Post.id
     ).correlate(models.Post).scalar_subquery()
@@ -234,7 +264,11 @@ def get_post(post_id: int, db: Session = Depends(get_db), current_user: models.U
         models.Comment.post_id == models.Post.id
     ).correlate(models.Post).scalar_subquery()
 
-    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count")).options(
+    shares_subq = db.query(func.count(SharedPost.id)).filter(
+        SharedPost.shared_post_id == models.Post.id
+    ).correlate(models.Post).scalar_subquery()
+
+    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count"), shares_subq.label("share_count")).options(
         joinedload(models.Post.author), 
         joinedload(models.Post.media),
         joinedload(models.Post.shared_post).joinedload(models.Post.author),
@@ -257,12 +291,12 @@ def get_post(post_id: int, db: Session = Depends(get_db), current_user: models.U
         raise HTTPException(status_code=403, detail="Bài viết này là riêng tư")
     
     if current_user:
-        post, like_count, comment_count, user_reaction = row
+        post, like_count, comment_count, share_count, user_reaction = row
     else:
-        post, like_count, comment_count = row
+        post, like_count, comment_count, share_count = row
         user_reaction = None
     
-    return __format_post_response(post, like_count, comment_count, user_reaction)
+    return __format_post_response(post, like_count, comment_count, share_count, user_reaction)
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

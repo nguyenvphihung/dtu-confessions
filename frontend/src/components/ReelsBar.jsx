@@ -4,24 +4,44 @@ import { Play } from 'lucide-react';
 import { getDailyReels } from '../api/reels';
 import { toast } from 'react-toastify';
 import { getApiErrorMessage } from '../api/axios';
-import { getReelThumbnailUrl } from '../utils/reelThumbnail';
+import { getReelThumbnailUrl, isSupportedVideoFile } from '../utils/reelThumbnail';
 
 const ITEM_WIDTH = 120;
 
 function ReelThumb({ item }) {
     const [loaded, setLoaded] = useState(false);
 
+    const hasImageThumb = Boolean(item.thumbnail_url);
+    const mediaUrl = getReelThumbnailUrl(item);
+
+    if (!hasImageThumb && item.file_name && isSupportedVideoFile(item.file_name)) {
+        return (
+            <>
+                <video
+                    src={`${mediaUrl}#t=0.1`}
+                    className={`w-full h-full object-cover opacity-85 ${loaded ? 'block' : 'hidden'}`}
+                    preload="metadata"
+                    muted
+                    playsInline
+                    onLoadedData={() => setLoaded(true)}
+                    onError={() => setLoaded(false)}
+                />
+                {!loaded && <div className="w-full h-full absolute top-0 left-0" style={{ background: 'linear-gradient(180deg, #0F172A 0%, #111827 100%)', zIndex: -1 }} />}
+            </>
+        );
+    }
+
     return (
         <>
             <img
-                src={getReelThumbnailUrl(item)}
+                src={mediaUrl}
                 alt={item.file_name || 'thumbnail'}
                 className={`w-full h-full object-cover opacity-85 ${loaded ? 'block' : 'hidden'}`}
                 loading="lazy"
                 onLoad={() => setLoaded(true)}
                 onError={() => setLoaded(false)}
             />
-            {!loaded && <div className="w-full h-full" style={{ background: 'linear-gradient(180deg, #0F172A 0%, #111827 100%)' }} />}
+            {!loaded && <div className="w-full h-full absolute top-0 left-0" style={{ background: 'linear-gradient(180deg, #0F172A 0%, #111827 100%)', zIndex: -1 }} />}
         </>
     );
 }

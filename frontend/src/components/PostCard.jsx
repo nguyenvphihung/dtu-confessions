@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Heart, MessageCircle, MoreHorizontal, UserCircle, Trash2, Share2, Lock, Flag } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, UserCircle, Trash2, Share2, Share, Lock, Flag, ThumbsUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -435,37 +435,59 @@ export function PostCard({ post, index = 0, onDelete }) {
             <VideoModal open={!!activeVideo} source={activeVideo} onClose={() => setActiveVideo(null)} />
 
             {/* Stats Section */}
-            {(likeCount > 0 || commentCount > 0) && (
+            {(likeCount > 0 || commentCount > 0 || post.share_count > 0) && (
                 <div className="flex items-center justify-between px-3 sm:px-5 py-2.5">
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:underline text-[0.85rem]" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                    <div className="flex items-center gap-2 cursor-pointer hover:underline text-[0.9rem]" style={{ color: isDark ? '#B0B3B8' : '#65676B' }}>
                         {likeCount > 0 ? (
                             <div className="flex items-center">
-                                {/* Simulated stacked icons based on Facebook - showing top reactions */}
-                                <div className="flex items-center -space-x-1.5 mr-1.5">
-                                    <div className="w-[18px] h-[18px] rounded-full bg-blue-500 text-white flex items-center justify-center border border-white dark:border-[#1A1A24] shadow-sm text-[10px]" style={{ zIndex: 2 }}>👍</div>
-                                    <div className="w-[18px] h-[18px] rounded-full bg-red-500 text-white flex items-center justify-center border border-white dark:border-[#1A1A24] shadow-sm text-[10px]" style={{ zIndex: 1 }}>❤️</div>
+                                <div className="flex items-center -space-x-1 mr-2">
+                                    {([...new Set([reaction, ...(post.top_reactions || [])].filter(Boolean))].slice(0, 3).length > 0 
+                                        ? [...new Set([reaction, ...(post.top_reactions || [])].filter(Boolean))].slice(0, 3) 
+                                        : ['like']
+                                    ).map((reactionId, index) => {
+                                        const rInfo = REACTION_TYPES.find(r => r.id === reactionId);
+                                        if (!rInfo) return null;
+                                        const zIndex = 20 - index;
+                                        if (rInfo.id === 'like') {
+                                            return (
+                                                <div key={rInfo.id} className="w-[18px] h-[18px] rounded-full bg-[#1877F2] text-white flex items-center justify-center border-2 border-white dark:border-[#242526]" style={{ zIndex }}>
+                                                    <ThumbsUp size={10} color="white" fill="white" strokeWidth={3} />
+                                                </div>
+                                            );
+                                        }
+                                        return (
+                                            <div key={rInfo.id} className="w-[18px] h-[18px] rounded-full text-white flex items-center justify-center border-2 border-white dark:border-[#242526] overflow-hidden" 
+                                                 style={{ zIndex, backgroundColor: rInfo.color || '#F7B125', '--tw-scale-x': '1.05', '--tw-scale-y': '1.05', transform: 'scale(var(--tw-scale-x))' }}>
+                                                <span className="text-[12px] leading-none transform translate-y-[-1px]">{rInfo.icon}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                                 <span style={{ fontFamily: 'Inter, sans-serif' }}>{formatNumber(likeCount)}</span>
                             </div>
                         ) : <div />}
                     </div>
-                    {commentCount > 0 && (
-                        <div 
-                            onClick={() => setShowComments(!showComments)}
-                            className="text-[0.85rem] cursor-pointer hover:underline" 
-                            style={{ color: isDark ? '#94A3B8' : '#64748B', fontFamily: 'Inter, sans-serif' }}
-                        >
-                            {formatNumber(commentCount)} bình luận
-                        </div>
-                    )}
+                    
+                    <div className="flex items-center gap-3 text-[0.85rem]" style={{ color: isDark ? '#B0B3B8' : '#65676B', fontFamily: 'Inter, sans-serif' }}>
+                        {commentCount > 0 && (
+                            <div onClick={() => setShowComments(!showComments)} className="cursor-pointer hover:underline">
+                                {formatNumber(commentCount)} bình luận
+                            </div>
+                        )}
+                        {post.share_count > 0 && (
+                            <div className="cursor-pointer hover:underline">
+                                {formatNumber(post.share_count)} lượt chia sẻ
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
             {/* Divider */}
-            <div className="mx-3 sm:mx-5" style={{ height: 1, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginTop: (likeCount > 0 || commentCount > 0) ? 0 : '10px' }} />
+            <div className="mx-3 sm:mx-4" style={{ height: 1, background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', marginTop: (likeCount > 0 || commentCount > 0) ? 0 : '10px' }} />
 
             {/* Actions */}
-            <div className="flex items-center justify-between px-2 sm:px-4 py-1">
+            <div className="flex items-center justify-between px-2 sm:px-4 py-1.5">
                 {/* Like Button Wrapper */}
                 <div 
                     className="relative flex-1"
@@ -481,7 +503,7 @@ export function PostCard({ post, index = 0, onDelete }) {
                                 transition={{ type: 'spring', damping: 20, stiffness: 300 }}
                                 className="absolute bottom-full left-0 mb-2 flex items-center gap-1 p-1.5 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.15)] border z-50 origin-bottom-left"
                                 style={{
-                                    background: isDark ? '#1E1E2D' : '#FFFFFF',
+                                    background: isDark ? '#242526' : '#FFFFFF',
                                     borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
                                 }}
                             >
@@ -506,17 +528,17 @@ export function PostCard({ post, index = 0, onDelete }) {
 
                     <button
                         onClick={() => handleReact(reaction || 'like')}
-                        className="w-full flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                        className="w-full flex items-center justify-center gap-2 py-[6px] rounded-md cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                         style={{
-                            color: reaction ? REACTION_TYPES.find(r => r.id === reaction)?.color || '#1877F2' : isDark ? '#94A3B8' : '#64748B',
+                            color: reaction ? REACTION_TYPES.find(r => r.id === reaction)?.color || '#1877F2' : isDark ? '#B0B3B8' : '#65676B',
                         }}
                     >
                         {reaction ? (
                             <span className="text-xl leading-none" style={{ transform: 'translateY(-1px)' }}>{REACTION_TYPES.find(r => r.id === reaction)?.icon}</span>
                         ) : (
-                            <Heart size={20} strokeWidth={1.5} />
+                            <ThumbsUp size={20} strokeWidth={1.75} />
                         )}
-                        <span className="hidden sm:inline" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.9rem' }}>
+                        <span className="hidden sm:inline" style={{ fontFamily: 'Segoe UI, Helvetica, Arial, sans-serif', fontWeight: 600, fontSize: '15px' }}>
                             {reaction ? REACTION_TYPES.find(r => r.id === reaction)?.name : 'Thích'}
                         </span>
                     </button>
@@ -524,26 +546,26 @@ export function PostCard({ post, index = 0, onDelete }) {
 
                 <button
                     onClick={() => setShowComments(!showComments)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    className="flex-1 flex items-center justify-center gap-2 py-[6px] rounded-md cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                     style={{
-                        color: showComments ? '#C53030' : isDark ? '#94A3B8' : '#64748B',
+                        color: showComments ? '#1877F2' : isDark ? '#B0B3B8' : '#65676B',
                     }}
                 >
-                    <MessageCircle size={20} strokeWidth={1.5} />
-                    <span className="hidden sm:inline" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.9rem' }}>
+                    <MessageCircle size={20} strokeWidth={1.75} />
+                    <span className="hidden sm:inline" style={{ fontFamily: 'Segoe UI, Helvetica, Arial, sans-serif', fontWeight: 600, fontSize: '15px' }}>
                         Bình luận
                     </span>
                 </button>
 
                 <button
                     onClick={() => setShowShareModal(true)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    className="flex-1 flex items-center justify-center gap-2 py-[6px] rounded-md cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                     style={{
-                        color: isDark ? '#94A3B8' : '#64748B',
+                        color: isDark ? '#B0B3B8' : '#65676B',
                     }}
                 >
-                    <Share2 size={20} strokeWidth={1.5} />
-                    <span className="hidden sm:inline" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.9rem' }}>
+                    <Share size={20} strokeWidth={1.75} />
+                    <span className="hidden sm:inline" style={{ fontFamily: 'Segoe UI, Helvetica, Arial, sans-serif', fontWeight: 600, fontSize: '15px' }}>
                         Chia sẻ
                     </span>
                 </button>

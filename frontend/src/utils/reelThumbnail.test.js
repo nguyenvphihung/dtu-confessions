@@ -8,9 +8,9 @@ describe('reelThumbnail utils', () => {
         expect(isSupportedVideoFile('sample.webm')).toBe(true);
     });
 
-    it('ưu tiên thumbnail_url từ API', () => {
+    it('ưu tiên file_url gốc của video để trích xuất frame bằng trình duyệt', () => {
         const item = { file_name: 'sample.mp4', file_url: '/video.mp4', thumbnail_url: '/thumb.jpg' };
-        expect(getReelThumbnailUrl(item)).toBe('/thumb.jpg');
+        expect(getReelThumbnailUrl(item)).toBe('/video.mp4');
     });
 
     it('fallback về file_url khi không có thumbnail_url', () => {
