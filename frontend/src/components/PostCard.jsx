@@ -151,6 +151,30 @@ export function PostCard({ post, index = 0, onDelete }) {
     const isLong = post.content?.length > 200;
     const displayContent = isLong && !expanded ? post.content.slice(0, 200) + '...' : post.content;
 
+    const renderContentWithTags = (text) => {
+        if (!text) return null;
+        const parts = text.split(/([#@]\w+)/g);
+        return parts.map((part, index) => {
+            if (part.match(/^[#@]\w+/)) {
+                return (
+                    <span
+                        key={index}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigate(`/?search=${encodeURIComponent(part.substring(1))}`);
+                        }}
+                        className="cursor-pointer hover:underline"
+                        style={{ color: part.startsWith('#') ? '#E53E3E' : '#3182CE', fontWeight: 600 }}
+                    >
+                        {part}
+                    </span>
+                );
+            }
+            return part;
+        });
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -210,7 +234,12 @@ export function PostCard({ post, index = 0, onDelete }) {
                             )}
                             {post.confession_number && (
                                 <span
-                                    className="px-1.5 py-0.5 rounded-lg text-xs font-bold"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        navigate(`/?search=${post.confession_number}`);
+                                    }}
+                                    className="px-1.5 py-0.5 rounded-lg text-xs font-bold cursor-pointer hover:underline"
                                     style={{ background: 'rgba(197, 48, 48, 0.1)', color: '#C53030', fontFamily: 'Inter, sans-serif' }}
                                 >
                                     #DTU_CFS_{post.confession_number}
@@ -323,7 +352,7 @@ export function PostCard({ post, index = 0, onDelete }) {
                         whiteSpace: 'pre-line',
                     }}
                 >
-                    {displayContent}
+                    {renderContentWithTags(displayContent)}
                 </p>
                 {isLong && (
                     <button
@@ -343,10 +372,12 @@ export function PostCard({ post, index = 0, onDelete }) {
                     background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
                 }}>
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                             style={{ background: post.shared_post.is_anonymous ? (isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0') : 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)' }}>
-                            {post.shared_post.is_anonymous ? '🎭' : (post.shared_post.author?.display_name || post.shared_post.author?.student_id || 'U').charAt(0).toUpperCase()}
-                        </div>
+                        <UserAvatar 
+                            user={post.shared_post.author} 
+                            isAnonymous={post.shared_post.is_anonymous} 
+                            sizeClasses="w-7 h-7"
+                            fontSize="0.75rem"
+                        />
                         <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '0.85rem', color: isDark ? '#F1F5F9' : '#1A1A2E' }}>
                             {post.shared_post.is_anonymous ? 'Ẩn danh' : (post.shared_post.author?.display_name || post.shared_post.author?.student_id || 'Người dùng')}
                         </span>
@@ -358,7 +389,7 @@ export function PostCard({ post, index = 0, onDelete }) {
                         fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', lineHeight: 1.5,
                         color: isDark ? '#CBD5E1' : '#374151', whiteSpace: 'pre-line'
                     }}>
-                        {post.shared_post.content}
+                        {renderContentWithTags(post.shared_post.content)}
                     </p>
                     {post.shared_post.media && post.shared_post.media.length > 0 && (
                         <div className="mt-2 text-xs" style={{ color: '#E53E3E', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>

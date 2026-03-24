@@ -145,12 +145,20 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
     if search: 
         search_fmt = f"%{search}%"
         query = query.outerjoin(models.User, models.Post.author_id == models.User.id)
-        query = query.filter(
-            or_(models.Post.content.ilike(search_fmt),
-                and_(models.Post.is_anonymous == False, models.User.display_name.ilike(search_fmt)),
-                and_(models.Post.is_anonymous == False, models.User.student_id.ilike(search_fmt))
-                )
-        )
+        filters = [
+            models.Post.content.ilike(search_fmt),
+            and_(models.Post.is_anonymous == False, models.User.display_name.ilike(search_fmt)),
+            and_(models.Post.is_anonymous == False, models.User.student_id.ilike(search_fmt))
+        ]
+
+        if search.isdigit():
+            filters.append(models.Post.confession_number == int(search))
+        elif search.lower().startswith("dtu_cfs_") and search[8:].isdigit():
+            filters.append(models.Post.confession_number == int(search[8:]))
+        elif search.lower().startswith("#dtu_cfs_") and search[9:].isdigit():
+            filters.append(models.Post.confession_number == int(search[9:]))
+
+        query = query.filter(or_(*filters))
 
     results = query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
 

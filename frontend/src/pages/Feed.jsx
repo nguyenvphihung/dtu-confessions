@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFetchOnMount } from '../hooks/useFetchOnMount';
 import { useSearchParams } from 'react-router-dom';
 import { PenSquare } from 'lucide-react';
 import { PostCard } from '../components/PostCard';
+import { PostSkeleton } from '../components/PostSkeleton';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { UserAvatar } from '../components/UserAvatar';
 import { ReelsBar } from '../components/ReelsBar';
@@ -48,11 +49,32 @@ export function Feed() {
         fetchPosts(0, false);
     }, [searchQuery]);
 
-    const handleLoadMore = () => {
+    const observerTarget = useRef(null);
+
+    const handleLoadMore = useCallback(() => {
+        if (loading || !hasMore) return;
+        setLoading(true);
         const newPage = page + 1;
         setPage(newPage);
         fetchPosts(newPage * 20, true);
-    };
+    }, [loading, hasMore, page, fetchPosts]);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !loading) {
+                    handleLoadMore();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, loading, handleLoadMore]);
 
     const handlePostCreated = (newPost) => {
         if (newPost) {
@@ -118,17 +140,12 @@ export function Feed() {
             )}
 
             {/* Posts */}
-            {loading ? (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex justify-center py-12"
-                >
-                    <div
-                        className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-                        style={{ borderColor: '#C53030', borderTopColor: 'transparent' }}
-                    />
-                </motion.div>
+            {loading && page === 0 ? (
+                <div>
+                    {[1, 2, 3].map((n) => (
+                        <PostSkeleton key={n} />
+                    ))}
+                </div>
             ) : posts.length === 0 ? (
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -155,22 +172,15 @@ export function Feed() {
 
             {/* Load More */}
             {hasMore && posts.length > 0 && (
-                <div className="flex justify-center py-6">
-                    <motion.button
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={handleLoadMore}
-                        className="px-8 py-3 rounded-xl text-white cursor-pointer"
-                        style={{
-                            background: 'linear-gradient(135deg, #E53E3E 0%, #FF6B6B 100%)',
-                            boxShadow: '0 4px 20px rgba(229, 62, 62, 0.35)',
-                            fontFamily: 'Poppins, sans-serif',
-                            fontWeight: 600,
-                            fontSize: '0.9rem',
-                        }}
-                    >
-                        Xem thêm
-                    </motion.button>
+                <div ref={observerTarget} className="flex justify-center py-6">
+                    {loading && page > 0 ? (
+                        <div
+                            className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
+                            style={{ borderColor: '#C53030', borderTopColor: 'transparent' }}
+                        />
+                    ) : (
+                        <div style={{ height: '40px' }}></div>
+                    )}
                 </div>
             )}
 
