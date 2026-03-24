@@ -1,5 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { Rightbar } from './Rightbar';
 import { RightPanel } from './RightPanel';
 import { useTheme } from '../context/ThemeContext';
 import { Search } from 'lucide-react';
@@ -32,6 +33,7 @@ export function Layout() {
             }}
         >
             <Sidebar />
+            <Rightbar />
 
             {/* Mobile Top Bar */}
             <header
@@ -81,7 +83,7 @@ export function Layout() {
             </header>
 
             {/* Content */}
-            <div className="lg:ml-64 flex justify-center pt-14 lg:pt-0">
+            <div className="lg:ml-64 lg:mr-16 xl:mr-20 flex justify-center pt-14 lg:pt-0">
                 <div className="w-full max-w-5xl xl:max-w-6xl flex gap-4 px-3 sm:px-4 py-4 lg:py-6 xl:px-6">
                     <main className="flex-1 min-w-0 max-w-2xl pb-24 lg:pb-6">
                         <AnimatePresence mode="wait">

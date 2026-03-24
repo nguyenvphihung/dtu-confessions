@@ -14,7 +14,7 @@ const NOTIFICATION_ICONS = {
     new_like: { icon: Heart, color: '#EC4899' },
 };
 
-export function NotificationDropdown() {
+export function NotificationDropdown({ inRightbar = false }) {
     const { isDark } = useTheme();
     const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
@@ -124,11 +124,11 @@ export function NotificationDropdown() {
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        initial={{ opacity: 0, y: inRightbar ? 0 : 8, x: inRightbar ? 8 : 0, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: inRightbar ? 0 : 8, x: inRightbar ? 8 : 0, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl overflow-hidden z-50"
+                        className={`absolute ${inRightbar ? 'right-[calc(100%+12px)] top-0' : 'right-0 top-full mt-2'} w-80 sm:w-96 rounded-2xl overflow-hidden z-50`}
                         style={{
                             background: isDark ? '#1A1A24' : '#FFFFFF',
                             border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',

@@ -11,6 +11,7 @@ import { VideoModal } from './VideoModal';
 import { AutoPlayVideo } from './AutoPlayVideo';
 import api, { getApiErrorMessage } from '../api/axios';
 import { createReport } from '../api/reports';
+import { ShareModal } from './ShareModal';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 
@@ -421,35 +422,7 @@ export function PostCard({ post, index = 0, onDelete }) {
                 <motion.button
                     whileTap={{ scale: 0.85 }}
                     whileHover={{ scale: 1.05 }}
-                    onClick={() => {
-                        const originalPostId = post.shared_post ? post.shared_post.id : post.id;
-                        Swal.fire({
-                            title: 'Chia sẻ bài viết này?',
-                            text: "Bài viết chia sẻ sẽ hiển thị trên trang cá nhân của bạn.",
-                            icon: 'question',
-                            showDenyButton: true,
-                            showCancelButton: true,
-                            confirmButtonText: 'Công khai',
-                            denyButtonText: 'Chỉ mình tôi',
-                            cancelButtonText: 'Hủy bỏ',
-                            confirmButtonColor: '#E53E3E',
-                            denyButtonColor: '#64748B'
-                        }).then(async (result) => {
-                            if (result.isConfirmed || result.isDenied) {
-                                try {
-                                    await api.post('/posts/', {
-                                        content: " ", 
-                                        is_anonymous: false,
-                                        is_private: result.isDenied,
-                                        shared_post_id: originalPostId
-                                    });
-                                    toast.success('Chia sẻ bài viết thành công!');
-                                } catch (err) {
-                                    toast.error(getApiErrorMessage(err, 'Lỗi chia sẻ bài viết'));
-                                }
-                            }
-                        });
-                    }}
+                    onClick={() => setShowShareModal(true)}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl cursor-pointer"
                     style={{
                         color: isDark ? '#64748B' : '#94A3B8',
@@ -466,6 +439,7 @@ export function PostCard({ post, index = 0, onDelete }) {
 
             {/* Comments */}
             <CommentSection postId={post.id} isOpen={showComments} />
+            <ShareModal open={showShareModal} onClose={() => setShowShareModal(false)} post={post} />
         </motion.div>
     );
 }

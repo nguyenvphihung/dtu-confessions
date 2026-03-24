@@ -12,7 +12,6 @@ const navItems = [
     { to: '/', icon: Home, label: 'Trang chủ' },
     { to: '/reels', icon: Clapperboard, label: 'Reels' },
     { to: '/profile', icon: User, label: 'Trang cá nhân' },
-    { to: '/settings', icon: SettingsIcon, label: 'Cài đặt' },
 ];
 
 
@@ -22,11 +21,6 @@ export function Sidebar() {
     const { user, logout } = useAuth();
     const [showCreate, setShowCreate] = useState(false);
     const navigate = useNavigate();
-
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
 
     return (
         <>
@@ -103,10 +97,6 @@ export function Sidebar() {
                         ))}
                     </nav>
 
-                    {/* Notifications */}
-                    <div className="mt-3 px-2">
-                        <NotificationDropdown />
-                    </div>
 
                     {/* Create Post Button */}
                     <motion.button
@@ -158,9 +148,6 @@ export function Sidebar() {
                                     {user.student_id}
                                 </div>
                             </div>
-                            <button onClick={handleLogout} className="cursor-pointer" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
-                                <LogOut size={16} />
-                            </button>
                         </div>
                     )}
                 </div>
