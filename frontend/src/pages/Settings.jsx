@@ -181,7 +181,7 @@ export function Settings() {
                         <div className="p-6 rounded-2xl" style={sectionStyle}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                                    <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
                                         {isDark ? <Moon size={20} /> : <Sun size={20} />}
                                     </div>
                                     <div>
@@ -362,7 +362,7 @@ export function Settings() {
                         >
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                                    <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
                                         <Lock size={20} />
                                     </div>
                                     <h3 className="font-bold text-lg" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Xác thực OTP</h3>
@@ -385,7 +385,7 @@ export function Settings() {
                                     placeholder="Nhập 6 số"
                                     value={otpCode}
                                     onChange={e => setOtpCode(e.target.value)}
-                                    className="w-full px-4 py-4 rounded-xl border text-center text-3xl font-bold tracking-[0.5em] outline-none transition-all focus:ring-2 focus:ring-blue-500/20"
+                                    className="w-full px-4 py-4 rounded-xl border text-center text-3xl font-bold tracking-[0.5em] outline-none transition-all focus:ring-2 focus:ring-red-500/20"
                                     style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
                                 />
 
@@ -401,7 +401,7 @@ export function Settings() {
                                     <button
                                         onClick={handleVerifyAndSave}
                                         disabled={loading || otpCode.length !== 6}
-                                        className="flex-1 py-3 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-blue-500/25 cursor-pointer disabled:opacity-50"
+                                        className="flex-1 py-3 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-red-500/25 cursor-pointer disabled:opacity-50"
                                         style={{ background: 'linear-gradient(135deg, #2563EB 0%, #3B82F6 100%)' }}
                                     >
                                         {loading ? 'Đang xác thực...' : 'Xác thực & Lưu'}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import hash_password, verify_password, create_access_token, create_refresh_token, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -12,7 +12,7 @@ import schemas
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 @router.post("/otp/send")
-def send_otp(request: schemas.OTPSendRequest, db: Session = Depends(get_db)):
+def send_otp(request: schemas.OTPSendRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # If purpose is forgot_password, check if user exists
     if request.purpose == "forgot_password":
         user = db.query(models.User).filter(models.User.email == request.email).first()
@@ -37,7 +37,8 @@ def send_otp(request: schemas.OTPSendRequest, db: Session = Depends(get_db)):
     db.add(new_otp)
     db.commit()
     
-    send_otp_email(request.email, otp_code, request.purpose)
+    # Process email sending in the background to avoid blocking the connection (eliminates 2-3s delay)
+    background_tasks.add_task(send_otp_email, request.email, otp_code, request.purpose)
     return {"message": "Mã OTP đã được gửi"}
 
 @router.post("/otp/verify")

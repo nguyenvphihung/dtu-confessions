@@ -4,6 +4,9 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
+
+load_dotenv() # IMPORTANT: Load environment variables before grabbing them
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +15,7 @@ SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
 SMTP_USER = os.environ.get("SMTP_USER") # Ví dụ: dtu.confessions@gmail.com
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD") # Mật khẩu ứng dụng (App Password)
+
 
 def send_otp_email(email: str, code: str, purpose: str):
     """

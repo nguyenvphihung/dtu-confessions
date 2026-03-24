@@ -292,7 +292,7 @@ export function Login() {
                                         required
                                         value={forgotData.otp_code}
                                         onChange={e => setForgotData({...forgotData, otp_code: e.target.value})}
-                                        className="w-full px-4 py-4 rounded-xl border text-center text-2xl font-bold tracking-widest outline-none transition-all focus:ring-2 focus:ring-blue-500/20"
+                                        className="w-full px-4 py-4 rounded-xl border text-center text-2xl font-bold tracking-widest outline-none transition-all focus:ring-2 focus:ring-red-500/20"
                                         style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
                                     />
                                     <button
