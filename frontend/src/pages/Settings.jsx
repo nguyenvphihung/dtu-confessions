@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sun, Moon, Shield, Bell, Globe, X, Lock } from 'lucide-react';
+import { Sun, Moon, Shield, Bell, Globe, X, Lock, User } from 'lucide-react';
 import { useState } from 'react';
 import api, { getApiErrorMessage } from '../api/axios';
 import { toast } from 'react-toastify';
@@ -64,186 +64,211 @@ export function Settings() {
         }
     };
 
-    return (
-        <div className="max-w-3xl mx-auto pb-20 lg:pb-8">
-            <motion.h1
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-2xl mb-6 font-bold"
-                style={{ color: isDark ? '#F1F5F9' : '#1A1A2E', fontFamily: 'Poppins, sans-serif' }}
-            >
-                Cài đặt tài khoản
-            </motion.h1>
+    const [activeTab, setActiveTab] = useState('profile');
 
-            <div className="flex flex-col gap-6">
-                {/* Thông tin cá nhân & Bảo mật */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="rounded-2xl p-6"
-                    style={sectionStyle}
-                >
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
-                            <Shield size={20} />
-                        </div>
-                        <h2 className="text-lg font-bold" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Thông tin & Bảo mật</h2>
-                    </div>
+    const tabs = [
+        { id: 'profile', label: 'Hồ sơ cá nhân', icon: <User size={18} /> },
+        { id: 'security', label: 'Tài khoản & Bảo mật', icon: <Shield size={18} /> },
+        { id: 'appearance', label: 'Giao diện & Hiển thị', icon: <Sun size={18} /> },
+        { id: 'notifications', label: 'Thông báo', icon: <Bell size={18} /> }
+    ];
 
-                    <form 
-                        onSubmit={async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.target);
-                            const display_name = formData.get('display_name');
-                            const email = formData.get('email');
-                            const password = formData.get('password');
-                            
-                            const data = { display_name };
-                            
-                            // If email or password changed, we need OTP
-                            if (email !== user.email || password) {
-                                if (email !== user.email) data.email = email;
-                                if (password) data.password = password;
-                                
-                                const purpose = email !== user.email ? 'change_email' : 'change_password';
-                                handleSendOtp(purpose, data);
-                            } else {
-                                // Just simple display name update
-                                try {
-                                    setLoading(true);
-                                    await api.put('/users/me', data);
-                                    toast.success('Cập nhật tên hiển thị thành công');
-                                } catch (err) {
-                                    toast.error(getApiErrorMessage(err, 'Lỗi cập nhật'));
-                                } finally {
-                                    setLoading(false);
-                                }
-                            }
-                        }}
-                        className="space-y-5"
-                    >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label className="block text-sm font-medium mb-2" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Tên hiển thị</label>
-                                <input 
-                                    name="display_name"
-                                    type="text"
-                                    defaultValue={user?.display_name || ''}
-                                    className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
-                                    style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-2" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Email liên kết</label>
-                                <input 
-                                    name="email"
-                                    type="email"
-                                    defaultValue={user?.email || ''}
-                                    className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
-                                    style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
-                                />
-                            </div>
-                        </div>
-
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'profile':
+                return (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium mb-2" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Mật khẩu mới (Để trống nếu không đổi)</label>
-                            <input 
-                                name="password"
-                                type="password"
-                                placeholder="••••••••"
-                                className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
-                                style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
-                            />
+                            <h2 className="text-xl font-bold mb-1" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Hồ sơ cá nhân</h2>
+                            <p className="text-sm" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Quản lý thông tin hiển thị với mọi người.</p>
                         </div>
-
-                        <div className="flex justify-end pt-2">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="px-8 py-3 rounded-xl font-bold text-white transition-all shadow-lg hover:shadow-red-500/25 cursor-pointer disabled:opacity-50"
-                                style={{ background: 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)' }}
+                        <div className="p-6 rounded-2xl" style={sectionStyle}>
+                            <form 
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    const formData = new FormData(e.target);
+                                    try {
+                                        setLoading(true);
+                                        await api.put('/users/me', { display_name: formData.get('display_name') });
+                                        toast.success('Cập nhật hồ sơ thành công');
+                                    } catch (err) {
+                                        toast.error(getApiErrorMessage(err));
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
                             >
-                                {loading ? 'Đang xử lý...' : 'Lưu tất cả thay đổi'}
-                            </button>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Tên hiển thị</label>
+                                        <input 
+                                            name="display_name"
+                                            type="text"
+                                            defaultValue={user?.display_name || ''}
+                                            className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 focus:ring-red-500/20"
+                                            style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                        />
+                                    </div>
+                                    <div className="pt-2">
+                                        <button type="submit" disabled={loading} className="px-6 py-2.5 rounded-xl font-semibold text-white transition-all shadow-md hover:shadow-red-500/25 cursor-pointer disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #C53030 0%, #E53E3E 100%)' }}>
+                                            {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
-                    </form>
-                </motion.div>
-
-                {/* Tài khoản section (fixed structure) */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="rounded-2xl p-5"
-                    style={sectionStyle}
-                >
-                    <h2 className="text-sm font-semibold mb-4 text-gray-500 uppercase tracking-wider relative flex items-center gap-2">
-                        Tài khoản
-                    </h2>
-                    
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-4 py-2 border-b" style={{ borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}>
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-500/10 text-blue-500">
-                                <Shield size={20} />
-                            </div>
-                            <div className="flex-1">
-                                <div className="font-medium" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Thay đổi mật khẩu</div>
-                                <div className="text-sm" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Cập nhật mật khẩu bảo vệ tài khoản</div>
-                            </div>
-                            <button 
-                                // onClick={() => setShowPasswordModal(true)} // Removed old password modal trigger
-                                className="text-sm px-4 py-1.5 rounded-lg border hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" 
-                                style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
-                            >
-                                Đổi
-                            </button>
+                    </motion.div>
+                );
+            case 'security':
+                return (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                        <div>
+                            <h2 className="text-xl font-bold mb-1" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Tài khoản & Bảo mật</h2>
+                            <p className="text-sm" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Quản lý email liên kết và mật khẩu đăng nhập.</p>
                         </div>
                         
-                        <div className="flex items-center gap-4 py-2">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-500/10 text-purple-500">
-                                <Bell size={20} />
+                        <div className="p-6 rounded-2xl space-y-6" style={sectionStyle}>
+                            {/* Email Section */}
+                            <div>
+                                <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Email liên kết</h3>
+                                <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', background: isDark ? '#0F172A' : '#F8FAFC' }}>
+                                    <div>
+                                        <div className="font-medium" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>{user?.email}</div>
+                                        <div className="text-xs text-green-500 flex items-center gap-1 mt-1 font-medium"><Lock size={12}/> Đã xác minh</div>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            const newEmail = window.prompt("Nhập email mới của bạn:");
+                                            if(newEmail && newEmail !== user.email) handleSendOtp('change_email', { email: newEmail });
+                                        }}
+                                        className="text-sm px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer"
+                                        style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                    >
+                                        Thay đổi
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex-1">
-                                <div className="font-medium" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Thông báo tin nhắn</div>
-                                <div className="text-sm" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Bật âm thanh báo khi có tương tác</div>
-                            </div>
-                            <button
-                                className="w-12 h-6 rounded-full relative transition-colors duration-200"
-                                style={{ background: '#E53E3E' }}
-                            >
-                                <div
-                                    className="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform duration-200"
-                                    style={{ transform: 'translateX(26px)' }}
-                                />
-                            </button>
-                        </div>
-                    </div>
-                </motion.div>
 
-                {/* Khác */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                            <hr style={{ borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }} />
+
+                            {/* Password Section */}
+                            <div>
+                                <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Mật khẩu</h3>
+                                <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', background: isDark ? '#0F172A' : '#F8FAFC' }}>
+                                    <div>
+                                        <div className="font-medium" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>••••••••</div>
+                                        <div className="text-xs mt-1" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Đăng nhập an toàn bằng mật khẩu</div>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            const newPass = window.prompt("Nhập mật khẩu MỚI (ít nhất 6 ký tự):");
+                                            if(newPass && newPass.length >= 6) handleSendOtp('change_password', { password: newPass });
+                                            else if(newPass) toast.warning("Mật khẩu quá ngắn!");
+                                        }}
+                                        className="text-sm px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer"
+                                        style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: isDark ? '#F1F5F9' : '#1A1A2E' }}
+                                    >
+                                        Đổi mật khẩu
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                );
+            case 'appearance':
+                return (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                        <div>
+                            <h2 className="text-xl font-bold mb-1" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Giao diện & Hiển thị</h2>
+                            <p className="text-sm" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Tùy chỉnh trải nghiệm xem của bạn.</p>
+                        </div>
+                        <div className="p-6 rounded-2xl" style={sectionStyle}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                                        {isDark ? <Moon size={20} /> : <Sun size={20} />}
+                                    </div>
+                                    <div>
+                                        <div className="font-medium" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Chế độ tối (Dark Mode)</div>
+                                        <div className="text-sm" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Tối ưu giao diện cho môi trường thiếu sáng</div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={toggleTheme}
+                                    className="w-14 h-7 rounded-full relative transition-colors duration-200 cursor-pointer"
+                                    style={{ background: isDark ? '#E53E3E' : '#E2E8F0' }}
+                                >
+                                    <div className="w-5 h-5 rounded-full bg-white absolute top-1 transition-transform duration-200 shadow-sm" style={{ transform: isDark ? 'translateX(32px)' : 'translateX(4px)' }} />
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                );
+            case 'notifications':
+                 return (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                        <div>
+                            <h2 className="text-xl font-bold mb-1" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Thông báo</h2>
+                            <p className="text-sm" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Cài đặt nhận thông báo từ hệ thống.</p>
+                        </div>
+                        <div className="p-6 rounded-2xl" style={sectionStyle}>
+                             <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
+                                        <Bell size={20} />
+                                    </div>
+                                    <div>
+                                        <div className="font-medium" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Âm thanh thông báo</div>
+                                        <div className="text-sm" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Phát âm thanh nhỏ khi có thông báo mới</div>
+                                    </div>
+                                </div>
+                                <button className="w-14 h-7 rounded-full relative transition-colors duration-200 cursor-pointer" style={{ background: '#E53E3E' }}>
+                                    <div className="w-5 h-5 rounded-full bg-white absolute top-1 transition-transform duration-200 shadow-sm" style={{ transform: 'translateX(32px)' }} />
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                 );
+            default: return null;
+        }
+    };
+
+    return (
+        <div className="max-w-5xl mx-auto pb-20 lg:pb-8 flex flex-col md:flex-row gap-8">
+            {/* Sidebar Navigation */}
+            <div className="w-full md:w-64 flex-shrink-0 space-y-2">
+                 <motion.h1
+                    initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="rounded-2xl p-5"
-                    style={sectionStyle}
+                    className="text-2xl mb-6 font-bold px-4 md:px-0"
+                    style={{ color: isDark ? '#F1F5F9' : '#1A1A2E', fontFamily: 'Poppins, sans-serif' }}
                 >
-                    <h2 className="text-sm font-semibold mb-4 text-gray-500 uppercase tracking-wider relative flex items-center gap-2">
-                        Tùy chọn khác
-                    </h2>
-                    
-                    <div className="flex items-center gap-4 py-2">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500/10 text-green-500">
-                            <Globe size={20} />
-                        </div>
-                        <div className="flex-1">
-                            <div className="font-medium" style={{ color: isDark ? '#F1F5F9' : '#1A1A2E' }}>Ngôn ngữ hiển thị</div>
-                            <div className="text-sm" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Tiếng Việt</div>
-                        </div>
-                    </div>
-                </motion.div>
+                    Cài đặt
+                </motion.h1>
+                <div className="overflow-x-auto flex md:flex-col gap-2 pb-2 md:pb-0 px-4 md:px-0 hide-scrollbar">
+                    {tabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all text-sm whitespace-nowrap cursor-pointer ${activeTab === tab.id ? 'shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                            style={{ 
+                                background: activeTab === tab.id ? (isDark ? '#2D3748' : '#FFFFFF') : 'transparent',
+                                color: activeTab === tab.id ? (isDark ? '#F1F5F9' : '#E53E3E') : (isDark ? '#94A3B8' : '#64748B'),
+                                border: activeTab === tab.id ? (isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.05)') : '1px solid transparent'
+                            }}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
             </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 px-4 md:px-0 min-w-0">
+                {renderContent()}
+            </div>
+
 
             {/* OTP Modal */}
             <AnimatePresence>
