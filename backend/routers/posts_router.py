@@ -75,6 +75,8 @@ def __format_post_response(post: models.Post, like_count: int, comment_count: in
             "email": post.author.email,
             "role": post.author.role,
             "is_banned": post.author.is_banned,
+            "avatar_url": post.author.avatar_url,
+            "cover_url": post.author.cover_url,
             "created_at": post.author.created_at
         }
 
