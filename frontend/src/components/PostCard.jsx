@@ -18,6 +18,7 @@ import Swal from 'sweetalert2';
 
 const REACTION_TYPES = [
     { id: 'like', icon: '👍', color: '#1877F2', name: 'Thích' },
+    { id: 'haha', icon: '😆', color: '#F7B125', name: 'Haha' },
     { id: 'wow', icon: '😲', color: '#F7B125', name: 'Wow' },
     { id: 'sad', icon: '😢', color: '#F7B125', name: 'Buồn' },
     { id: 'angry', icon: '😡', color: '#E4222E', name: 'Phẫn nộ' }
@@ -42,7 +43,7 @@ const timeAgo = (dateString) => {
     return date.toLocaleDateString('vi-VN');
 };
 
-export function PostCard({ post, index = 0, onDelete }) {
+export const PostCard = React.memo(({ post, index = 0, onDelete }) => {
     const navigate = useNavigate();
     const { isDark } = useTheme();
     const { user } = useAuth();
@@ -66,6 +67,7 @@ export function PostCard({ post, index = 0, onDelete }) {
     const [expanded, setExpanded] = useState(false);
     const [showImageModal, setShowImageModal] = useState(false);
     const [modalStartIndex, setModalStartIndex] = useState(0);
+    const [modalImages, setModalImages] = useState([]);
     const [activeVideo, setActiveVideo] = useState(null);
     const [showShareModal, setShowShareModal] = useState(false);
 
@@ -392,8 +394,31 @@ export function PostCard({ post, index = 0, onDelete }) {
                         {renderContentWithTags(post.shared_post.content)}
                     </p>
                     {post.shared_post.media && post.shared_post.media.length > 0 && (
-                        <div className="mt-2 text-xs" style={{ color: '#E53E3E', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>
-                            [Đính kèm {post.shared_post.media.length} media]
+                        <div className="mt-3">
+                            <div className={`grid gap-1.5 ${post.shared_post.media.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                {post.shared_post.media.map((m, idx) =>
+                                    m.media_type === 'image' ? (
+                                        <img
+                                            key={m.id}
+                                            src={m.file_url}
+                                            alt={m.file_name}
+                                            className="rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity w-full"
+                                            loading="lazy"
+                                            decoding="async"
+                                            style={{ aspectRatio: post.shared_post.media.length >= 2 ? '1/1' : '16/9', maxHeight: post.shared_post.media.length === 1 ? '240px' : '160px' }}
+                                            onClick={() => { setModalImages(post.shared_post.media); setModalStartIndex(idx); setShowImageModal(true); }}
+                                        />
+                                    ) : m.media_type === 'audio' ? (
+                                        <div key={m.id} className="w-full">
+                                            <audio controls className="w-full" style={{ height: '32px' }}>
+                                                <source src={m.file_url} type={m.mime_type} />
+                                            </audio>
+                                        </div>
+                                    ) : m.media_type === 'video' ? (
+                                        <AutoPlayVideo key={m.id} media={m} onOpen={setActiveVideo} />
+                                    ) : null
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -413,7 +438,7 @@ export function PostCard({ post, index = 0, onDelete }) {
                                     loading="lazy"
                                     decoding="async"
                                     style={{ aspectRatio: post.media.length >= 2 ? '1/1' : '16/9', maxHeight: post.media.length === 1 ? '320px' : '200px' }}
-                                    onClick={() => { setModalStartIndex(idx); setShowImageModal(true); }}
+                                    onClick={() => { setModalImages(post.media); setModalStartIndex(idx); setShowImageModal(true); }}
                                 />
                             ) : m.media_type === 'audio' ? (
                                 <div key={m.id} className="w-full">
@@ -430,7 +455,12 @@ export function PostCard({ post, index = 0, onDelete }) {
             )}
 
             {showImageModal && (
-                <ImageModal images={post.media.filter(m => m.media_type === 'image')} postId={post.id} initialIndex={modalStartIndex} onClose={() => setShowImageModal(false)} />
+                <ImageModal 
+                    images={modalImages.filter(m => m.media_type === 'image')} 
+                    postId={post.id} 
+                    initialIndex={modalStartIndex} 
+                    onClose={() => setShowImageModal(false)} 
+                />
             )}
             <VideoModal open={!!activeVideo} source={activeVideo} onClose={() => setActiveVideo(null)} />
 
@@ -441,27 +471,28 @@ export function PostCard({ post, index = 0, onDelete }) {
                         {likeCount > 0 ? (
                             <div className="flex items-center">
                                 <div className="flex items-center -space-x-1 mr-2">
-                                    {([...new Set([reaction, ...(post.top_reactions || [])].filter(Boolean))].slice(0, 3).length > 0 
-                                        ? [...new Set([reaction, ...(post.top_reactions || [])].filter(Boolean))].slice(0, 3) 
-                                        : ['like']
-                                    ).map((reactionId, index) => {
-                                        const rInfo = REACTION_TYPES.find(r => r.id === reactionId);
-                                        if (!rInfo) return null;
-                                        const zIndex = 20 - index;
-                                        if (rInfo.id === 'like') {
+                                    {(() => {
+                                        const displayReactions = [...new Set([...(post.top_reactions || []), reaction].filter(Boolean))].slice(0, 3);
+                                        if (displayReactions.length === 0) displayReactions.push('like');
+                                        return displayReactions.map((reactionId, index) => {
+                                            const rInfo = REACTION_TYPES.find(r => r.id === reactionId);
+                                            if (!rInfo) return null;
+                                            const zIndex = 20 - index;
+                                            if (rInfo.id === 'like') {
+                                                return (
+                                                    <div key={rInfo.id} className="w-[18px] h-[18px] rounded-full bg-[#1877F2] text-white flex items-center justify-center border-2 border-white dark:border-[#242526]" style={{ zIndex }}>
+                                                        <ThumbsUp size={10} color="white" fill="white" strokeWidth={3} />
+                                                    </div>
+                                                );
+                                            }
                                             return (
-                                                <div key={rInfo.id} className="w-[18px] h-[18px] rounded-full bg-[#1877F2] text-white flex items-center justify-center border-2 border-white dark:border-[#242526]" style={{ zIndex }}>
-                                                    <ThumbsUp size={10} color="white" fill="white" strokeWidth={3} />
+                                                <div key={rInfo.id} className="w-[18px] h-[18px] rounded-full text-white flex items-center justify-center border-2 border-white dark:border-[#242526] overflow-hidden" 
+                                                     style={{ zIndex, backgroundColor: rInfo.color || '#F7B125', '--tw-scale-x': '1.05', '--tw-scale-y': '1.05', transform: 'scale(var(--tw-scale-x))' }}>
+                                                    <span className="text-[12px] leading-none transform translate-y-[-1px]">{rInfo.icon}</span>
                                                 </div>
                                             );
-                                        }
-                                        return (
-                                            <div key={rInfo.id} className="w-[18px] h-[18px] rounded-full text-white flex items-center justify-center border-2 border-white dark:border-[#242526] overflow-hidden" 
-                                                 style={{ zIndex, backgroundColor: rInfo.color || '#F7B125', '--tw-scale-x': '1.05', '--tw-scale-y': '1.05', transform: 'scale(var(--tw-scale-x))' }}>
-                                                <span className="text-[12px] leading-none transform translate-y-[-1px]">{rInfo.icon}</span>
-                                            </div>
-                                        );
-                                    })}
+                                        });
+                                    })()}
                                 </div>
                                 <span style={{ fontFamily: 'Inter, sans-serif' }}>{formatNumber(likeCount)}</span>
                             </div>
@@ -576,4 +607,4 @@ export function PostCard({ post, index = 0, onDelete }) {
             <ShareModal open={showShareModal} onClose={() => setShowShareModal(false)} post={post} />
         </motion.div>
     );
-}
+});

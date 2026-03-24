@@ -1,34 +1,15 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session, joinedload, subqueryload, aliased
 from sqlalchemy import func, or_, and_
+from collections import Counter
 from typing import List, Optional
 from database import get_db
-from auth import get_current_user
-from jose import JWTError, jwt
+from auth import get_current_user, get_optional_user
 import models
 import schemas
-import os
 
 router = APIRouter(prefix="/api/posts", tags=["Posts"])
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = "HS256"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
-
-def get_optional_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    if not token:
-        return None
-    try: 
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id_str: str = payload.get("sub")
-        if user_id_str is None:
-            return None
-        user = db.query(models.User).filter(models.User.id == int(user_id_str)).first()
-        return user
-    except (JWTError, ValueError):
-        return None
     
 def __format_post_response(post: models.Post, like_count: int, comment_count: int, share_count: int, user_reaction: Optional[str], top_reactions: List[str] = None) -> dict:
     media_list = []
@@ -47,8 +28,7 @@ def __format_post_response(post: models.Post, like_count: int, comment_count: in
     
     # Calculate top_reactions if not explicitly provided, by analyzing post.interactions if they are loaded
     if top_reactions is None:
-        if hasattr(post, 'interactions'):
-            from collections import Counter
+        if hasattr(post, 'interactions') and post.interactions:
             reaction_counts = Counter([i.interaction_type for i in post.interactions])
             # sort by count descending, then take top 3
             top_reactions = [r[0] for r in reaction_counts.most_common(3)]
@@ -78,7 +58,7 @@ def __format_post_response(post: models.Post, like_count: int, comment_count: in
     }
 
     if getattr(post, 'shared_post', None) is not None:
-        result["shared_post"] = __format_post_response(post.shared_post, 0, 0, 0, None)
+        result["shared_post"] = __format_post_response(post.shared_post, 0, 0, 0, None, top_reactions=[])
 
     if not post.is_anonymous and post.author:
         result["author"] = {
@@ -115,22 +95,9 @@ def create_post(post_data: schemas.PostCreate, db: Session = Depends(get_db), cu
 
 @router.get("/", response_model=List[schemas.PostResponse])
 def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: Session = Depends(get_db), current_user: models.User = Depends(get_optional_user)):
-    from sqlalchemy.orm import aliased
     SharedPost = aliased(models.Post)
 
-    likes_subq = db.query(func.count(models.Interaction.id)).filter(
-        models.Interaction.post_id == models.Post.id
-    ).correlate(models.Post).as_scalar()
-
-    comments_subq = db.query(func.count(models.Comment.id)).filter(
-        models.Comment.post_id == models.Post.id
-    ).correlate(models.Post).as_scalar()
-
-    shares_subq = db.query(func.count(SharedPost.id)).filter(
-        SharedPost.shared_post_id == models.Post.id
-    ).correlate(models.Post).as_scalar()
-
-    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count"), shares_subq.label("share_count")).options(
+    query = db.query(models.Post).options(
         joinedload(models.Post.author), 
         joinedload(models.Post.media),
         joinedload(models.Post.shared_post).joinedload(models.Post.author),
@@ -155,13 +122,6 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
             )
         )
 
-    if current_user:
-        user_reaction_subq = db.query(models.Interaction.interaction_type).filter(
-            models.Interaction.post_id == models.Post.id,
-            models.Interaction.user_id == current_user.id
-        ).correlate(models.Post).as_scalar()
-        query = query.add_columns(user_reaction_subq.label("user_reaction"))
-
     if search: 
         search_fmt = f"%{search}%"
         query = query.outerjoin(models.User, models.Post.author_id == models.User.id)
@@ -184,16 +144,51 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
 
         query = query.filter(or_(*filters))
 
-    results = query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+    posts_list = query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+    
+    if not posts_list:
+        return []
+
+    post_ids = [p.id for p in posts_list]
+
+    # Bulk fetch counts
+    likes_counts = dict(db.query(models.Interaction.post_id, func.count(models.Interaction.id))
+                        .filter(models.Interaction.post_id.in_(post_ids)).group_by(models.Interaction.post_id).all())
+    
+    comments_counts = dict(db.query(models.Comment.post_id, func.count(models.Comment.id))
+                          .filter(models.Comment.post_id.in_(post_ids)).group_by(models.Comment.post_id).all())
+    
+    shares_counts = dict(db.query(models.Post.shared_post_id, func.count(models.Post.id))
+                         .filter(models.Post.shared_post_id.in_(post_ids)).group_by(models.Post.shared_post_id).all())
+
+    user_reactions = {}
+    if current_user:
+        user_reactions = dict(db.query(models.Interaction.post_id, models.Interaction.interaction_type)
+                             .filter(models.Interaction.post_id.in_(post_ids), models.Interaction.user_id == current_user.id).all())
+
+    # Bulk fetch top reaction types
+    type_counts_raw = db.query(models.Interaction.post_id, models.Interaction.interaction_type, func.count(models.Interaction.id)) \
+        .filter(models.Interaction.post_id.in_(post_ids)) \
+        .group_by(models.Interaction.post_id, models.Interaction.interaction_type) \
+        .order_by(models.Interaction.post_id, func.count(models.Interaction.id).desc()).all()
+    
+    top_reactions_map = {}
+    for pid, itype, count in type_counts_raw:
+        if pid not in top_reactions_map:
+            top_reactions_map[pid] = []
+        if len(top_reactions_map[pid]) < 6:
+            top_reactions_map[pid].append(itype)
 
     response = []
-    for row in results:
-        if current_user:
-            post, like_count, comment_count, share_count, user_reaction = row
-        else:
-            post, like_count, comment_count, share_count = row
-            user_reaction = None
-        response.append(__format_post_response(post, like_count, comment_count, share_count, user_reaction))
+    for post in posts_list:
+        response.append(__format_post_response(
+            post, 
+            likes_counts.get(post.id, 0), 
+            comments_counts.get(post.id, 0), 
+            shares_counts.get(post.id, 0), 
+            user_reactions.get(post.id),
+            top_reactions=top_reactions_map.get(post.id, [])
+        ))
     return response
 
 @router.get("/user/{user_id}", response_model=List[schemas.PostResponse])
@@ -202,22 +197,9 @@ def get_user_posts(user_id: int, skip: int = 0, limit: int = 20, db: Session = D
     if not user:
         raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
 
-    from sqlalchemy.orm import aliased
     SharedPost = aliased(models.Post)
 
-    likes_subq = db.query(func.count(models.Interaction.id)).filter(
-        models.Interaction.post_id == models.Post.id
-    ).correlate(models.Post).as_scalar()
-
-    comments_subq = db.query(func.count(models.Comment.id)).filter(
-        models.Comment.post_id == models.Post.id
-    ).correlate(models.Post).as_scalar()
-
-    shares_subq = db.query(func.count(SharedPost.id)).filter(
-        SharedPost.shared_post_id == models.Post.id
-    ).correlate(models.Post).as_scalar()
-
-    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count"), shares_subq.label("share_count")).options(
+    query = db.query(models.Post).options(
         joinedload(models.Post.author), 
         joinedload(models.Post.media),
         joinedload(models.Post.shared_post).joinedload(models.Post.author),
@@ -232,69 +214,83 @@ def get_user_posts(user_id: int, skip: int = 0, limit: int = 20, db: Session = D
             or_(models.Post.is_private == False, models.Post.is_private.is_(None))
         )
 
-    if current_user:
-        user_reaction_subq = db.query(models.Interaction.interaction_type).filter(
-            models.Interaction.post_id == models.Post.id,
-            models.Interaction.user_id == current_user.id
-        ).correlate(models.Post).as_scalar()
-        query = query.add_columns(user_reaction_subq.label("user_reaction"))
+    posts_list = query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+    
+    if not posts_list:
+        return []
 
-    results = query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+    post_ids = [p.id for p in posts_list]
+
+    likes_counts = dict(db.query(models.Interaction.post_id, func.count(models.Interaction.id))
+                        .filter(models.Interaction.post_id.in_(post_ids)).group_by(models.Interaction.post_id).all())
+    
+    comments_counts = dict(db.query(models.Comment.post_id, func.count(models.Comment.id))
+                          .filter(models.Comment.post_id.in_(post_ids)).group_by(models.Comment.post_id).all())
+    
+    shares_counts = dict(db.query(models.Post.shared_post_id, func.count(models.Post.id))
+                         .filter(models.Post.shared_post_id.in_(post_ids)).group_by(models.Post.shared_post_id).all())
+
+    user_reactions = {}
+    if current_user:
+        user_reactions = dict(db.query(models.Interaction.post_id, models.Interaction.interaction_type)
+                             .filter(models.Interaction.post_id.in_(post_ids), models.Interaction.user_id == current_user.id).all())
+
+    # Bulk fetch top reaction types
+    type_counts_raw = db.query(models.Interaction.post_id, models.Interaction.interaction_type, func.count(models.Interaction.id)) \
+        .filter(models.Interaction.post_id.in_(post_ids)) \
+        .group_by(models.Interaction.post_id, models.Interaction.interaction_type) \
+        .order_by(models.Interaction.post_id, func.count(models.Interaction.id).desc()).all()
+    
+    top_reactions_map = {}
+    for pid, itype, count in type_counts_raw:
+        if pid not in top_reactions_map:
+            top_reactions_map[pid] = []
+        if len(top_reactions_map[pid]) < 6:
+            top_reactions_map[pid].append(itype)
 
     response = []
-    for row in results:
-        if current_user:
-            post, like_count, comment_count, share_count, user_reaction = row
-        else:
-            post, like_count, comment_count, share_count = row
-            user_reaction = None
-        response.append(__format_post_response(post, like_count, comment_count, share_count, user_reaction))
+    for post in posts_list:
+        response.append(__format_post_response(
+            post, 
+            likes_counts.get(post.id, 0), 
+            comments_counts.get(post.id, 0), 
+            shares_counts.get(post.id, 0), 
+            user_reactions.get(post.id),
+            top_reactions=top_reactions_map.get(post.id, [])
+        ))
     return response
 
 @router.get("/{post_id}", response_model=schemas.PostResponse)
 def get_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_optional_user)):
-    from sqlalchemy.orm import aliased
     SharedPost = aliased(models.Post)
 
-    likes_subq = db.query(func.count(models.Interaction.id)).filter(
-        models.Interaction.post_id == models.Post.id
-    ).correlate(models.Post).scalar_subquery()
-
-    comments_subq = db.query(func.count(models.Comment.id)).filter(
-        models.Comment.post_id == models.Post.id
-    ).correlate(models.Post).scalar_subquery()
-
-    shares_subq = db.query(func.count(SharedPost.id)).filter(
-        SharedPost.shared_post_id == models.Post.id
-    ).correlate(models.Post).scalar_subquery()
-
-    query = db.query(models.Post, likes_subq.label("like_count"), comments_subq.label("comment_count"), shares_subq.label("share_count")).options(
+    query = db.query(models.Post).options(
         joinedload(models.Post.author), 
         joinedload(models.Post.media),
         joinedload(models.Post.shared_post).joinedload(models.Post.author),
         joinedload(models.Post.shared_post).joinedload(models.Post.media)
     ).filter(models.Post.id == post_id)
 
-    if current_user:
-        user_reaction_subq = db.query(models.Interaction.interaction_type).filter(
-            models.Interaction.post_id == models.Post.id,
-            models.Interaction.user_id == current_user.id
-        ).correlate(models.Post).as_scalar()
-        query = query.add_columns(user_reaction_subq.label("user_reaction"))
-
-    row = query.first()
-    if not row:
+    post = query.first()
+    if not post:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài post")
     
-    post = row[0]
     if getattr(post, 'is_private', False) and (not current_user or current_user.id != post.author_id):
         raise HTTPException(status_code=403, detail="Bài viết này là riêng tư")
     
+    # Bulk fetch counts for single post (still faster than subqueries)
+    like_count = db.query(func.count(models.Interaction.id)).filter(models.Interaction.post_id == post_id).scalar()
+    comment_count = db.query(func.count(models.Comment.id)).filter(models.Comment.post_id == post_id).scalar()
+    share_count = db.query(func.count(models.Post.id)).filter(models.Post.shared_post_id == post_id).scalar()
+
+    user_reaction = None
     if current_user:
-        post, like_count, comment_count, share_count, user_reaction = row
-    else:
-        post, like_count, comment_count, share_count = row
-        user_reaction = None
+        res = db.query(models.Interaction.interaction_type).filter(
+            models.Interaction.post_id == post_id, 
+            models.Interaction.user_id == current_user.id
+        ).first()
+        if res:
+            user_reaction = res[0]
     
     return __format_post_response(post, like_count, comment_count, share_count, user_reaction)
 

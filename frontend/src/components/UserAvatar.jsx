@@ -2,7 +2,7 @@ import React from 'react';
 import { UserCircle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
-export function UserAvatar({ 
+export const UserAvatar = React.memo(({ 
     user, 
     isAnonymous = false, 
     className = "", 
@@ -11,7 +11,7 @@ export function UserAvatar({
     onClick,
     children,
     style = {}
-}) {
+}) => {
     const { isDark } = useTheme();
 
     if (isAnonymous) {
@@ -35,13 +35,18 @@ export function UserAvatar({
         return (
             <div
                 onClick={onClick}
-                className={`flex-shrink-0 rounded-full bg-cover bg-center ${sizeClasses} ${className}`}
+                className={`flex-shrink-0 rounded-full overflow-hidden ${sizeClasses} ${className}`}
                 style={{
                     ...style,
-                    backgroundImage: `url(${user.avatar_url})`,
                     cursor: onClick ? 'pointer' : 'default'
                 }}
             >
+                <img 
+                    src={user.avatar_url} 
+                    alt={user.display_name || 'User Avatar'} 
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                />
                 {children}
             </div>
         );
@@ -64,4 +69,4 @@ export function UserAvatar({
             {children}
         </div>
     );
-}
+});

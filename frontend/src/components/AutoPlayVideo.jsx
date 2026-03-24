@@ -49,11 +49,11 @@ export function AutoPlayVideo({ media, onOpen }) {
         <div ref={wrapRef} className="relative w-full cursor-pointer" onClick={() => onOpen(media)}>
             <video
                 ref={videoRef}
-                src={shouldLoad ? media.file_url : undefined}
+                src={media.file_url}
                 className="w-full rounded-xl"
                 style={{ maxHeight: '320px' }}
                 playsInline
-                preload={inView ? 'auto' : 'metadata'}
+                preload="metadata"
                 muted
                 loop
                 onLoadedData={() => setReady(true)}

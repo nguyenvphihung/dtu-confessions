@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime, UniqueConstraint, func, Float
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime, UniqueConstraint, func, Float, Index
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -32,7 +32,7 @@ class Post(Base):
     content = Column(Text, nullable=False)
     is_anonymous = Column(Boolean, default=False)
     is_private = Column(Boolean, default=False)
-    shared_post_id = Column(Integer, ForeignKey("posts.id", ondelete="SET NULL"), nullable=True)
+    shared_post_id = Column(Integer, ForeignKey("posts.id", ondelete="SET NULL"), nullable=True, index=True)
     status = Column(String(20), default="pending", nullable=False, index=True)
     confession_number = Column(Integer, unique=True, nullable=True)
     rejected_reason = Column(String(500), nullable=True)
@@ -43,6 +43,10 @@ class Post(Base):
     comments = relationship("Comment", back_populates="post", order_by="Comment.created_at", cascade="all, delete-orphan")
     media = relationship("PostMedia", back_populates="post", cascade="all, delete-orphan")
     interactions = relationship("Interaction", back_populates="post", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_posts_status_created_at", "status", created_at.desc()),
+    )
 
 
 class Comment(Base):
@@ -100,8 +104,8 @@ class CommentInteraction(Base):
     __tablename__ = "comment_interactions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False, index=True)
     interaction_type = Column(String(50), default="like")
     created_at = Column(DateTime, server_default=func.now())
 

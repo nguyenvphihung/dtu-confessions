@@ -50,6 +50,8 @@ def get_current_user(token: str = Depends(oauth_scheme), db: Session = Depends(g
     try:
         if not tok and request:
             tok = request.cookies.get('access_token')
+        if not tok:
+            raise credentials_exception
         payload = jwt.decode(tok, SECRET_KEY, algorithms=[ALGORITHM])
         user_id_str: str = payload.get("sub")
         if user_id_str is None:
