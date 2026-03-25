@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Heart, MessageCircle, MoreHorizontal, UserCircle, Trash2, Share2, Share, Lock, Flag, ThumbsUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
@@ -550,7 +550,13 @@ export const PostCard = React.memo(({ post, index = 0, onDelete }) => {
                                         className="w-10 h-10 flex items-center justify-center text-[24px] hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors cursor-pointer"
                                         title={r.name}
                                     >
-                                        {r.icon}
+                                        {r.id === 'like' ? (
+                                            <div className="w-[32px] h-[32px] rounded-full bg-[#1877F2] flex items-center justify-center shadow-sm">
+                                                <ThumbsUp size={16} color="white" fill="white" strokeWidth={3} />
+                                            </div>
+                                        ) : (
+                                            r.icon
+                                        )}
                                     </motion.button>
                                 ))}
                             </motion.div>
@@ -565,7 +571,15 @@ export const PostCard = React.memo(({ post, index = 0, onDelete }) => {
                         }}
                     >
                         {reaction ? (
-                            <span className="text-xl leading-none" style={{ transform: 'translateY(-1px)' }}>{REACTION_TYPES.find(r => r.id === reaction)?.icon}</span>
+                            <span className="text-xl leading-none flex items-center justify-center" style={{ transform: 'translateY(-1px)' }}>
+                                {reaction === 'like' ? (
+                                    <div className="w-[22px] h-[22px] rounded-full bg-[#1877F2] flex items-center justify-center shadow-sm">
+                                        <ThumbsUp size={12} color="white" fill="white" strokeWidth={3} />
+                                    </div>
+                                ) : (
+                                    REACTION_TYPES.find(r => r.id === reaction)?.icon
+                                )}
+                            </span>
                         ) : (
                             <ThumbsUp size={20} strokeWidth={1.75} />
                         )}
