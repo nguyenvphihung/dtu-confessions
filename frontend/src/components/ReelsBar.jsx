@@ -12,7 +12,7 @@ function ReelThumb({ item }) {
     const [loaded, setLoaded] = useState(false);
     const [imgFailed, setImgFailed] = useState(false);
 
-    const thumbUrl = item.thumbnail_url; // backend /api/reels/{id}/thumbnail
+    const thumbUrl = getReelThumbnailUrl(item);
     const videoUrl = item.file_url;
 
     // Strategy: Try <img> from backend thumbnail first. If that fails, fall back to <video> element.

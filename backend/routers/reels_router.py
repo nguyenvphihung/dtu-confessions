@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
@@ -26,7 +26,7 @@ class ReelAnalyticsRequest(BaseModel):
     watch_time: float = 0
 
 
-def _as_dict(media: models.PostMedia, view_count: int, like_count: int, share_count: int, comment_count: int, user_liked: bool):
+def _as_dict(media: models.PostMedia, view_count: int, like_count: int, share_count: int, comment_count: int, user_liked: bool, request: Request = None):
     post = media.post
     author = None
     if post and not post.is_anonymous and post.author:
@@ -35,6 +35,13 @@ def _as_dict(media: models.PostMedia, view_count: int, like_count: int, share_co
             "student_id": post.author.student_id,
             "display_name": post.author.display_name
         }
+    
+    thumb_url = ""
+    if request:
+        thumb_url = str(request.url_for('get_reel_thumbnail', media_id=media.id))
+    else:
+        thumb_url = f"/api/reels/{media.id}/thumbnail"
+        
     return {
         "media_id": media.id,
         "post_id": media.post_id,
@@ -42,7 +49,7 @@ def _as_dict(media: models.PostMedia, view_count: int, like_count: int, share_co
         "mime_type": media.mime_type,
         "file_name": media.file_name,
         "created_at": media.created_at,
-        "thumbnail_url": f"/api/reels/{media.id}/thumbnail",
+        "thumbnail_url": thumb_url,
         "view_count": int(view_count or 0),
         "like_count": int(like_count or 0),
         "share_count": int(share_count or 0),
@@ -54,6 +61,7 @@ def _as_dict(media: models.PostMedia, view_count: int, like_count: int, share_co
 
 @router.get("/daily")
 def get_daily_reels(
+    request: Request,
     date: Optional[str] = Query(None),
     skip: int = 0,
     limit: int = 12,
@@ -108,7 +116,7 @@ def get_daily_reels(
         else:
             media, view_count, like_count, share_count, comment_count = row
             user_liked = False
-        items.append(_as_dict(media, view_count, like_count, share_count, comment_count, user_liked))
+        items.append(_as_dict(media, view_count, like_count, share_count, comment_count, user_liked, request))
     return {
         "success": True,
         "data": {

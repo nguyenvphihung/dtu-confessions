@@ -12,5 +12,13 @@ export default defineConfig({
     allowedHosts: [
       'unpregnant-asia-nonvisiting.ngrok-free.dev'
     ]
+  },
+  preview: {
+    proxy: {
+      '/api': 'http://localhost:8000'
+    },
+    allowedHosts: [
+      'unpregnant-asia-nonvisiting.ngrok-free.dev'
+    ]
   }
 })

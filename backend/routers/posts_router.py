@@ -79,14 +79,21 @@ def __format_post_response(post: models.Post, like_count: int, comment_count: in
 
 @router.post("/", response_model=schemas.PostResponse, status_code=status.HTTP_201_CREATED)
 def create_post(post_data: schemas.PostCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    is_admin = getattr(current_user, 'role', '') == 'admin'
+    
     new_post = models.Post(
         author_id = current_user.id,
         content = post_data.content,
         is_anonymous = post_data.is_anonymous,
         is_private = post_data.is_private,
         shared_post_id = post_data.shared_post_id,
-        status = "approved" if post_data.shared_post_id else "pending"
+        status = "approved" if (post_data.shared_post_id or is_admin) else "pending"
     )
+    
+    if is_admin and not post_data.shared_post_id:
+        max_num = db.query(func.max(models.Post.confession_number)).scalar() or 0
+        new_post.confession_number = max_num + 1
+
     db.add(new_post)
     db.commit()
     db.refresh(new_post)

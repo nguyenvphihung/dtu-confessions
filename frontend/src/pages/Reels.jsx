@@ -198,6 +198,14 @@ export default function Reels() {
     };
 
     useEffect(() => {
+        // Clear caches so going back to Feed/Profile refetches the possibly-updated interaction counts.
+        sessionStorage.removeItem('feed_posts_cache');
+        sessionStorage.removeItem('feed_page_cache');
+        sessionStorage.removeItem('feed_has_more_cache');
+        sessionStorage.removeItem('feed_scroll_cache');
+        sessionStorage.removeItem('profile_posts_cache');
+        sessionStorage.removeItem('profile_scroll_cache');
+        
         load(0, false);
     }, []);
 
