@@ -36,12 +36,7 @@ def _as_dict(media: models.PostMedia, view_count: int, like_count: int, share_co
             "display_name": post.author.display_name
         }
     
-    thumb_url = ""
-    if request:
-        thumb_url = str(request.url_for('get_reel_thumbnail', media_id=media.id))
-    else:
-        thumb_url = f"/api/reels/{media.id}/thumbnail"
-        
+    thumb_url = f"/api/reels/{media.id}/thumbnail"
     return {
         "media_id": media.id,
         "post_id": media.post_id,
