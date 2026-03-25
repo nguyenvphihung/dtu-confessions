@@ -21,8 +21,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401 && !error.config?.url?.includes('/auth/')) {
-            // If server rejects due to auth, redirect to login.
+        if (error.response?.status === 401 && 
+            !error.config?.url?.includes('/auth/') && 
+            !error.config?.url?.includes('/users/me') &&
+            window.location.pathname !== '/login'
+        ) {
             window.location.href = '/login';
         }
         return Promise.reject(error);
