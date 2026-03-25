@@ -18,7 +18,7 @@ export const UserAvatar = React.memo(({
         return (
             <div
                 onClick={onClick}
-                className={`flex-shrink-0 flex items-center justify-center rounded-full ${sizeClasses} ${className}`}
+                className={`relative flex-shrink-0 flex items-center justify-center rounded-full ${sizeClasses} ${className}`}
                 style={{ 
                     ...style,
                     background: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0',
@@ -35,7 +35,7 @@ export const UserAvatar = React.memo(({
         return (
             <div
                 onClick={onClick}
-                className={`flex-shrink-0 rounded-full overflow-hidden ${sizeClasses} ${className}`}
+                className={`relative flex-shrink-0 rounded-full overflow-hidden ${sizeClasses} ${className}`}
                 style={{
                     ...style,
                     cursor: onClick ? 'pointer' : 'default'
