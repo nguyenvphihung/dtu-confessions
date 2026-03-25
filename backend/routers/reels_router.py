@@ -70,8 +70,7 @@ def get_daily_reels(
         models.ReelView.media_id == models.PostMedia.id
     ).correlate(models.PostMedia).scalar_subquery()
     like_subq = db.query(func.count(models.Interaction.id)).filter(
-        models.Interaction.post_id == models.PostMedia.post_id,
-        models.Interaction.interaction_type == "like"
+        models.Interaction.post_id == models.PostMedia.post_id
     ).correlate(models.PostMedia).scalar_subquery()
     share_subq = db.query(func.count(models.ReelInteraction.id)).filter(
         models.ReelInteraction.media_id == models.PostMedia.id,
@@ -90,14 +89,14 @@ def get_daily_reels(
     ).join(models.Post, models.Post.id == models.PostMedia.post_id).options(
         joinedload(models.PostMedia.post).joinedload(models.Post.author)
     ).filter(
-        models.PostMedia.media_type == "video"
+        models.PostMedia.media_type == "video",
+        models.Post.status == "approved"
     ).order_by(models.PostMedia.created_at.desc())
 
     if current_user:
         user_liked_subq = db.query(models.Interaction.id).filter(
             models.Interaction.post_id == models.PostMedia.post_id,
-            models.Interaction.user_id == current_user.id,
-            models.Interaction.interaction_type == "like"
+            models.Interaction.user_id == current_user.id
         ).correlate(models.PostMedia).exists()
         query = query.add_columns(user_liked_subq.label("user_liked"))
 
@@ -161,17 +160,20 @@ def track_analytics(
     if action == "like":
         existing = db.query(models.Interaction).filter(
             models.Interaction.post_id == media.post_id,
-            models.Interaction.user_id == current_user.id,
-            models.Interaction.interaction_type == "like"
+            models.Interaction.user_id == current_user.id
         ).first()
         if existing:
             db.delete(existing)
             db.commit()
             likes = db.query(func.count(models.Interaction.id)).filter(
-                models.Interaction.post_id == media.post_id,
-                models.Interaction.interaction_type == "like"
+                models.Interaction.post_id == media.post_id
             ).scalar() or 0
-            return {"success": True, "data": {"status": "unliked", "like_count": int(likes)}}
+            shares = db.query(func.count(models.ReelInteraction.id)).filter(
+                models.ReelInteraction.media_id == media_id,
+                models.ReelInteraction.interaction_type == "share"
+            ).scalar() or 0
+            return {"success": True, "data": {"status": "unliked", "like_count": int(likes), "share_count": int(shares)}}
+            
         interaction = models.Interaction(
             user_id=current_user.id,
             post_id=media.post_id,
@@ -180,8 +182,7 @@ def track_analytics(
         db.add(interaction)
         db.commit()
         likes = db.query(func.count(models.Interaction.id)).filter(
-            models.Interaction.post_id == media.post_id,
-            models.Interaction.interaction_type == "like"
+            models.Interaction.post_id == media.post_id
         ).scalar() or 0
         shares = db.query(func.count(models.ReelInteraction.id)).filter(
             models.ReelInteraction.media_id == media_id,
@@ -229,8 +230,7 @@ def track_analytics(
             db.add(interaction)
             db.commit()
     likes = db.query(func.count(models.Interaction.id)).filter(
-        models.Interaction.post_id == media.post_id,
-        models.Interaction.interaction_type == "like"
+        models.Interaction.post_id == media.post_id
     ).scalar() or 0
     shares = db.query(func.count(models.ReelInteraction.id)).filter(
         models.ReelInteraction.media_id == media_id,

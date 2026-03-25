@@ -46,12 +46,12 @@ export function AutoPlayVideo({ media, onOpen }) {
     };
 
     return (
-        <div ref={wrapRef} className="relative w-full cursor-pointer" onClick={() => onOpen(media)}>
+        <div ref={wrapRef} className="relative w-full cursor-pointer rounded-xl overflow-hidden" style={{ minHeight: ready ? 'auto' : '200px', background: 'rgba(15, 23, 42, 0.1)' }} onClick={() => onOpen(media)}>
             <video
                 ref={videoRef}
                 src={media.file_url}
-                className="w-full rounded-xl"
-                style={{ maxHeight: '320px' }}
+                className={`w-full ${ready ? 'opacity-100' : 'opacity-0'}`}
+                style={{ maxHeight: '320px', transition: 'opacity 0.3s' }}
                 playsInline
                 preload="metadata"
                 muted
@@ -62,8 +62,8 @@ export function AutoPlayVideo({ media, onOpen }) {
                 onStalled={() => setReady(false)}
             />
             {!ready && (
-                <div className="absolute inset-0 rounded-xl flex items-center justify-center" style={{ background: 'rgba(15, 23, 42, 0.65)' }}>
-                    <div className="w-7 h-7 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center animate-pulse" style={{ background: 'rgba(15, 23, 42, 0.05)' }}>
+                    <div className="w-7 h-7 border-2 border-slate-400/30 border-t-slate-500 rounded-full animate-spin" />
                 </div>
             )}
             <button

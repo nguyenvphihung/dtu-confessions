@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import api from '../api/axios';
+import { UserAvatar } from './UserAvatar';
 
 export function RightPanel() {
     const { isDark } = useTheme();
@@ -157,44 +158,51 @@ export function RightPanel() {
                                             ? isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)'
                                             : 'none',
                                     }}
-                                    onClick={() => navigate('/')}
+                                    onClick={() => {
+                                        if (post.confession_number) {
+                                            navigate(`/?search=${post.confession_number}`);
+                                        }
+                                    }}
                                 >
-                                    <div className="flex items-start gap-2.5">
-                                        <span
-                                            className="w-5 h-5 rounded-md flex items-center justify-center text-xs flex-shrink-0 mt-0.5"
-                                            style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '0.7rem' }}
-                                        >
-                                            {i + 1}
-                                        </span>
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex flex-col items-center">
+                                            <span
+                                                className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                                                style={{ 
+                                                    background: i === 0 ? 'rgba(239, 68, 68, 0.1)' : isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9', 
+                                                    color: i === 0 ? '#EF4444' : isDark ? '#94A3B8' : '#64748B', 
+                                                    fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '0.75rem' 
+                                                }}
+                                            >
+                                                {i + 1}
+                                            </span>
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <div
                                                 className="line-clamp-2"
                                                 style={{
                                                     fontFamily: 'Inter, sans-serif',
-                                                    fontSize: '0.78rem',
-                                                    lineHeight: '1.4',
-                                                    color: isDark ? '#CBD5E1' : '#374151',
+                                                    fontSize: '0.82rem',
+                                                    fontWeight: 500,
+                                                    lineHeight: '1.45',
+                                                    color: isDark ? '#E2E8F0' : '#1E293B',
+                                                    marginBottom: '4px'
                                                 }}
                                             >
-                                                {post.content}
+                                                {post.content || "Bài viết không có nội dung..."}
                                             </div>
-                                            <div className="flex items-center gap-3 mt-1.5">
-                                                <span className="flex items-center gap-1" style={{ fontSize: '0.68rem', color: '#EF4444' }}>
-                                                    <Heart size={10} /> {post.like_count}
+                                            <div className="flex items-center flex-wrap gap-1.5 text-xs text-gray-500" style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '0.7rem' }}>
+                                                <span className="flex items-center gap-1 font-medium" style={{ color: '#EF4444' }}>
+                                                    <Heart size={10} fill="currentColor" /> {post.like_count}
                                                 </span>
-                                                <span className="flex items-center gap-1" style={{ fontSize: '0.68rem', color: isDark ? '#475569' : '#94A3B8' }}>
-                                                    <MessageSquare size={10} /> {post.comment_count}
+                                                <span className="opacity-50">•</span>
+                                                <span className="flex items-center gap-1 font-medium">
+                                                    {post.comment_count} bình luận
                                                 </span>
-                                                {post.author && !post.is_anonymous && (
-                                                    <span style={{ fontSize: '0.68rem', color: isDark ? '#475569' : '#94A3B8' }}>
-                                                        {post.author.display_name || post.author.student_id}
-                                                    </span>
-                                                )}
-                                                {post.is_anonymous && (
-                                                    <span style={{ fontSize: '0.68rem', color: isDark ? '#475569' : '#94A3B8', fontStyle: 'italic' }}>
-                                                        Ẩn danh
-                                                    </span>
-                                                )}
+                                                <span className="opacity-50">•</span>
+                                                <span className="truncate max-w-[80px]" style={{ fontStyle: post.is_anonymous ? 'italic' : 'normal' }}>
+                                                    {post.is_anonymous ? 'Ẩn danh' : (post.author?.display_name || post.author?.student_id)}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -228,27 +236,21 @@ export function RightPanel() {
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.1 + i * 0.06, duration: 0.3 }}
                                     whileHover={{ x: 4, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}
-                                    className="flex items-center justify-between py-2.5 rounded-xl px-2"
+                                    className="flex items-center justify-between py-2.5 rounded-xl px-2 cursor-pointer"
                                     style={{
                                         borderBottom: i < activeUsers.length - 1
                                             ? isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)'
                                             : 'none',
                                     }}
+                                    onClick={() => navigate(`/profile/${u.id}`)}
                                 >
                                     <div className="flex items-center gap-2.5">
-                                        <div
-                                            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                                            style={{
-                                                background: i === 0
-                                                    ? 'linear-gradient(135deg, #F59E0B, #EF4444)'
-                                                    : i === 1
-                                                    ? 'linear-gradient(135deg, #94A3B8, #64748B)'
-                                                    : i === 2
-                                                    ? 'linear-gradient(135deg, #D97706, #B45309)'
-                                                    : 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-                                            }}
-                                        >
-                                            {(u.display_name || u.student_id || '?').charAt(0).toUpperCase()}
+                                        <div className="relative">
+                                            <UserAvatar 
+                                                user={u} 
+                                                sizeClasses="w-8 h-8" 
+                                                fontSize="0.8rem" 
+                                            />
                                         </div>
                                         <div>
                                             <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.8rem', color: isDark ? '#CBD5E1' : '#374151' }}>

@@ -152,6 +152,43 @@ export function AdminModeration() {
                                         {post.content}
                                     </p>
 
+                                    {/* Media Preview */}
+                                    {post.media && post.media.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {post.media.map((m) => (
+                                                <div key={m.id} className="relative rounded-lg overflow-hidden" style={{ maxWidth: '200px', maxHeight: '200px' }}>
+                                                    {m.media_type === 'video' ? (
+                                                        <video
+                                                            src={m.file_url}
+                                                            controls
+                                                            preload="metadata"
+                                                            className="w-full h-full object-cover rounded-lg"
+                                                            style={{ maxHeight: '200px' }}
+                                                        />
+                                                    ) : (
+                                                        <img
+                                                            src={m.file_url}
+                                                            alt={m.file_name || 'media'}
+                                                            className="w-full h-full object-cover rounded-lg cursor-pointer"
+                                                            style={{ maxHeight: '200px' }}
+                                                            onClick={() => window.open(m.file_url, '_blank')}
+                                                        />
+                                                    )}
+                                                    <div 
+                                                        className="absolute top-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-bold"
+                                                        style={{ 
+                                                            background: 'rgba(0,0,0,0.6)', 
+                                                            color: '#fff',
+                                                            backdropFilter: 'blur(4px)',
+                                                        }}
+                                                    >
+                                                        {m.media_type === 'video' ? '🎬 Video' : '🖼️ Ảnh'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     {/* Actions */}
                                     <div className="flex items-center gap-2 mt-4">
                                         <motion.button

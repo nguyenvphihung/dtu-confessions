@@ -232,6 +232,7 @@ export function Profile() {
                         post={post}
                         index={index}
                         onDelete={(id) => setPosts(posts.filter(p => p.id !== id))}
+                        onUpdatePost={(id, updates) => setPosts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p))}
                     />
                 ))
             )}

@@ -108,6 +108,20 @@ def delete_any_post(
     if not post:
         raise HTTPException(status_code=404, detail="Bài viết không tồn tại")
         
+    # Cleanup physical media files
+    media_files = db.query(models.PostMedia).filter(models.PostMedia.post_id == post_id).all()
+    if media_files:
+        try:
+            from routers.media_router import minio_client, MINIO_BUCKET
+            if minio_client:
+                for media in media_files:
+                    try:
+                        minio_client.remove_object(MINIO_BUCKET, media.file_name)
+                    except Exception as e:
+                        print(f"Lỗi xóa file MinIO: {e}")
+        except ImportError:
+            pass
+            
     db.delete(post)
     db.commit()
     return {"message": "Đã xoá bài viết thành công"}
@@ -159,6 +173,15 @@ def get_pending_posts(
                 "status": p.status,
                 "created_at": p.created_at,
                 "media_count": len(p.media) if p.media else 0,
+                "media": [
+                    {
+                        "id": m.id,
+                        "file_url": m.file_url,
+                        "media_type": m.media_type,
+                        "mime_type": m.mime_type,
+                        "file_name": m.file_name,
+                    } for m in (p.media or [])
+                ],
                 "author": {
                     "id": p.author.id,
                     "student_id": p.author.student_id,

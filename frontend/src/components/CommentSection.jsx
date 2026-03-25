@@ -120,7 +120,7 @@ const CommentItem = ({ comment, entityType, entityId, isDark, onReplySuccess, de
                                 fontFamily: 'Poppins, sans-serif',
                                 fontWeight: 600,
                                 fontSize: '0.78rem',
-                                color: isDark ? '#CBD5E1' : '#374151',
+                                color: isDark ? '#FFFFFF' : '#1A1A2E',
                                 display: 'inline'
                             }}
                         >
@@ -149,7 +149,7 @@ const CommentItem = ({ comment, entityType, entityId, isDark, onReplySuccess, de
                                 fontFamily: 'Inter, sans-serif',
                                 fontSize: '0.82rem',
                                 lineHeight: 1.5,
-                                color: isDark ? '#94A3B8' : '#4B5563',
+                                color: isDark ? '#F1F5F9' : '#334155',
                                 marginTop: '2px',
                                 wordBreak: 'break-word'
                             }}
@@ -158,7 +158,7 @@ const CommentItem = ({ comment, entityType, entityId, isDark, onReplySuccess, de
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-4 mt-1 ml-1" style={{ fontSize: '0.7rem', color: isDark ? '#64748B' : '#94A3B8', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>
+                    <div className="flex items-center gap-4 mt-1 ml-1" style={{ fontSize: '0.7rem', color: isDark ? '#94A3B8' : '#64748B', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>
                         <span>{timeAgo(comment.created_at)}</span>
                         <button
                             onClick={debouncedLike}
@@ -250,8 +250,9 @@ const CommentItem = ({ comment, entityType, entityId, isDark, onReplySuccess, de
     );
 };
 
-export function CommentSection({ postId, entityType = 'post', entityId, isOpen, onCountChange }) {
-    const { isDark } = useTheme();
+export function CommentSection({ postId, entityType = 'post', entityId, isOpen, onCountChange, forceDark }) {
+    const { isDark: themeIsDark } = useTheme();
+    const isDark = forceDark || themeIsDark || entityType === 'reel';
     const { user } = useAuth();
     const targetId = entityId ?? postId;
     const [comments, setComments] = useState([]);
@@ -327,7 +328,7 @@ export function CommentSection({ postId, entityType = 'post', entityId, isOpen, 
                             style={{
                                 background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(229, 62, 62, 0.05)',
                                 border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(229, 62, 62, 0.12)',
-                                color: isDark ? '#F1F5F9' : '#1A1A2E',
+                                color: isDark ? '#FFFFFF' : '#1A1A2E',
                                 fontFamily: 'Inter, sans-serif',
                                 fontSize: '16px',
                             }}
@@ -352,7 +353,7 @@ export function CommentSection({ postId, entityType = 'post', entityId, isOpen, 
                             <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#C53030', borderTopColor: 'transparent' }} />
                         </div>
                     ) : comments.length === 0 ? (
-                        <div className="text-center py-3" style={{ color: isDark ? '#475569' : '#94A3B8', fontSize: '0.82rem' }}>
+                        <div className="text-center py-3" style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '0.82rem' }}>
                             Chưa có bình luận nào
                         </div>
                     ) : (

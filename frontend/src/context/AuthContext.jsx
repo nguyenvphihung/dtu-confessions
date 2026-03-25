@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
             password: password,
             remember: remember,
         });
-        // Server sets HttpOnly cookies; response returns user object
+        sessionStorage.clear(); // Clear any stale cache before setting new user
         setUser(res.data);
         return res.data;
     };
@@ -50,6 +50,7 @@ export function AuthProvider({ children }) {
         } catch (e) {
             // ignore
         }
+        sessionStorage.clear(); // Clean up cross-user state leaks
         setUser(null);
     };
 

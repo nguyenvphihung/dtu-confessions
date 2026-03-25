@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Heart, MessageCircle, MoreHorizontal, UserCircle, Trash2, Share2, Share, Lock, Flag, ThumbsUp } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, UserCircle, Trash2, Share2, Share, Lock, Globe, Flag, ThumbsUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -43,7 +43,7 @@ const timeAgo = (dateString) => {
     return date.toLocaleDateString('vi-VN');
 };
 
-export const PostCard = React.memo(({ post, index = 0, onDelete }) => {
+export const PostCard = React.memo(({ post, index = 0, onDelete, onUpdatePost }) => {
     const navigate = useNavigate();
     const { isDark } = useTheme();
     const { user } = useAuth();
@@ -133,19 +133,29 @@ export const PostCard = React.memo(({ post, index = 0, onDelete }) => {
         setReaction(newReaction);
         setLikeCount(newCount);
         setShowReactions(false);
+        if (onUpdatePost) {
+            onUpdatePost(post.id, { user_reaction: newReaction, like_count: newCount });
+        }
 
         try {
             const res = await api.post(`/posts/${post.id}/like?type=${type}`);
             const data = res.data?.data;
             if (data) {
-                if (data.status === 'unliked') setReaction(null);
-                else setReaction(data.user_reaction || type);
+                const finalReaction = data.status === 'unliked' ? null : (data.user_reaction || type);
+                const finalCount = typeof data.like_count === 'number' ? data.like_count : newCount;
                 
-                if (typeof data.like_count === 'number') setLikeCount(data.like_count);
+                setReaction(finalReaction);
+                setLikeCount(finalCount);
+                if (onUpdatePost) {
+                    onUpdatePost(post.id, { user_reaction: finalReaction, like_count: finalCount });
+                }
             }
         } catch (err) {
             setReaction(prevReaction);
             setLikeCount(prevCount);
+            if (onUpdatePost) {
+                onUpdatePost(post.id, { user_reaction: prevReaction, like_count: prevCount });
+            }
             toast.error(getApiErrorMessage(err, 'Không thể bày tỏ cảm xúc'));
         }
     };
@@ -229,11 +239,6 @@ export const PostCard = React.memo(({ post, index = 0, onDelete }) => {
                                     Ẩn danh
                                 </span>
                             )}
-                            {post.is_private && (
-                                <div className="flex items-center justify-center p-1 rounded-full" style={{ background: 'rgba(100, 116, 139, 0.1)', color: isDark ? '#94A3B8' : '#64748B' }} title="Chỉ mình tôi">
-                                    <Lock size={12} strokeWidth={2} />
-                                </div>
-                            )}
                             {post.confession_number && (
                                 <span
                                     onClick={(e) => {
@@ -241,8 +246,12 @@ export const PostCard = React.memo(({ post, index = 0, onDelete }) => {
                                         e.stopPropagation();
                                         navigate(`/?search=${post.confession_number}`);
                                     }}
-                                    className="px-1.5 py-0.5 rounded-lg text-xs font-bold cursor-pointer hover:underline"
-                                    style={{ background: 'rgba(197, 48, 48, 0.1)', color: '#C53030', fontFamily: 'Inter, sans-serif' }}
+                                    className="px-1.5 py-0.5 rounded text-[0.7rem] font-medium cursor-pointer transition-colors"
+                                    style={{ 
+                                        background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', 
+                                        color: isDark ? '#CBD5E1' : '#475569', 
+                                        fontFamily: 'Inter, sans-serif' 
+                                    }}
                                 >
                                     #DTU_CFS_{post.confession_number}
                                 </span>
@@ -258,9 +267,13 @@ export const PostCard = React.memo(({ post, index = 0, onDelete }) => {
                                 </span>
                             )}
                         </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                            <span style={{ fontSize: '0.78rem', color: isDark ? '#475569' : '#94A3B8' }}>
+                        <div className="flex items-center gap-1 mt-0.5">
+                            <span style={{ fontSize: '0.78rem', color: isDark ? '#64748B' : '#94A3B8' }} className="hover:underline cursor-pointer">
                                 {timeAgo(post.created_at)}
+                            </span>
+                            <span style={{ fontSize: '0.78rem', color: isDark ? '#64748B' : '#94A3B8' }}>•</span>
+                            <span className="flex items-center" style={{ color: isDark ? '#64748B' : '#94A3B8' }} title={post.is_private ? "Chỉ mình tôi" : "Công khai"}>
+                                {post.is_private ? <Lock size={11} strokeWidth={2.5} /> : <Globe size={11} strokeWidth={2.5} />}
                             </span>
                         </div>
                     </div>
@@ -617,7 +630,16 @@ export const PostCard = React.memo(({ post, index = 0, onDelete }) => {
             </div>
 
             {/* Comments */}
-            <CommentSection postId={post.id} isOpen={showComments} />
+            <CommentSection 
+                postId={post.id} 
+                isOpen={showComments} 
+                onCountChange={(count) => {
+                    setCommentCount(count);
+                    if (onUpdatePost) {
+                        onUpdatePost(post.id, { comment_count: count });
+                    }
+                }}
+            />
             <ShareModal open={showShareModal} onClose={() => setShowShareModal(false)} post={post} />
         </motion.div>
     );

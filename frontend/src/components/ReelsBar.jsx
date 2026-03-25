@@ -10,15 +10,34 @@ const ITEM_WIDTH = 120;
 
 function ReelThumb({ item }) {
     const [loaded, setLoaded] = useState(false);
+    const [imgFailed, setImgFailed] = useState(false);
 
-    const hasImageThumb = Boolean(item.thumbnail_url);
-    const mediaUrl = getReelThumbnailUrl(item);
+    const thumbUrl = item.thumbnail_url; // backend /api/reels/{id}/thumbnail
+    const videoUrl = item.file_url;
 
-    if (!hasImageThumb && item.file_name && isSupportedVideoFile(item.file_name)) {
+    // Strategy: Try <img> from backend thumbnail first. If that fails, fall back to <video> element.
+    if (thumbUrl && !imgFailed) {
+        return (
+            <>
+                <img
+                    src={thumbUrl}
+                    alt={item.file_name || 'thumbnail'}
+                    className={`w-full h-full object-cover opacity-85 ${loaded ? 'block' : 'hidden'}`}
+                    loading="lazy"
+                    onLoad={() => setLoaded(true)}
+                    onError={() => setImgFailed(true)}
+                />
+                {!loaded && <div className="w-full h-full absolute top-0 left-0 animate-pulse" style={{ background: 'linear-gradient(180deg, #334155 0%, #0F172A 100%)', zIndex: -1 }} />}
+            </>
+        );
+    }
+
+    // Fallback: try video element (works for same-origin files)
+    if (videoUrl) {
         return (
             <>
                 <video
-                    src={`${mediaUrl}#t=0.1`}
+                    src={`${videoUrl}#t=0.1`}
                     className={`w-full h-full object-cover opacity-85 ${loaded ? 'block' : 'hidden'}`}
                     preload="metadata"
                     muted
@@ -26,24 +45,12 @@ function ReelThumb({ item }) {
                     onLoadedData={() => setLoaded(true)}
                     onError={() => setLoaded(false)}
                 />
-                {!loaded && <div className="w-full h-full absolute top-0 left-0" style={{ background: 'linear-gradient(180deg, #0F172A 0%, #111827 100%)', zIndex: -1 }} />}
+                {!loaded && <div className="w-full h-full absolute top-0 left-0 animate-pulse" style={{ background: 'linear-gradient(180deg, #334155 0%, #0F172A 100%)', zIndex: -1 }} />}
             </>
         );
     }
 
-    return (
-        <>
-            <img
-                src={mediaUrl}
-                alt={item.file_name || 'thumbnail'}
-                className={`w-full h-full object-cover opacity-85 ${loaded ? 'block' : 'hidden'}`}
-                loading="lazy"
-                onLoad={() => setLoaded(true)}
-                onError={() => setLoaded(false)}
-            />
-            {!loaded && <div className="w-full h-full absolute top-0 left-0" style={{ background: 'linear-gradient(180deg, #0F172A 0%, #111827 100%)', zIndex: -1 }} />}
-        </>
-    );
+    return <div className="w-full h-full animate-pulse" style={{ background: 'linear-gradient(180deg, #334155 0%, #0F172A 100%)' }} />;
 }
 
 export function ReelsBar({ isDark }) {

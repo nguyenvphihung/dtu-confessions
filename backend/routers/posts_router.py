@@ -94,7 +94,7 @@ def create_post(post_data: schemas.PostCreate, db: Session = Depends(get_db), cu
     return __format_post_response(new_post, 0, 0, 0, None)
 
 @router.get("/", response_model=List[schemas.PostResponse])
-def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: Session = Depends(get_db), current_user: models.User = Depends(get_optional_user)):
+def get_posts(skip: int = 0, limit: int =20, cursor: Optional[int] = None, search: Optional[str] = None, db: Session = Depends(get_db), current_user: models.User = Depends(get_optional_user)):
     SharedPost = aliased(models.Post)
 
     query = db.query(models.Post).options(
@@ -144,7 +144,11 @@ def get_posts(skip: int = 0, limit: int =20, search: Optional[str] = None, db: S
 
         query = query.filter(or_(*filters))
 
-    posts_list = query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+    if cursor:
+        query = query.filter(models.Post.id < cursor)
+        posts_list = query.order_by(models.Post.id.desc()).limit(limit).all()
+    else:
+        posts_list = query.order_by(models.Post.id.desc()).offset(skip).limit(limit).all()
     
     if not posts_list:
         return []
@@ -308,6 +312,20 @@ def delete_post(post_id: int, db: Session = Depends(get_db), current_user: model
         models.Notification.ref_id == post_id
     ).delete()
     
+    # Cleanup physical media files
+    media_files = db.query(models.PostMedia).filter(models.PostMedia.post_id == post_id).all()
+    if media_files:
+        try:
+            from routers.media_router import minio_client, MINIO_BUCKET
+            if minio_client:
+                for media in media_files:
+                    try:
+                        minio_client.remove_object(MINIO_BUCKET, media.file_name)
+                    except Exception as e:
+                        print(f"Lỗi xóa file MinIO: {e}")
+        except ImportError:
+            pass
+            
     db.delete(post)
     db.commit()
     return None

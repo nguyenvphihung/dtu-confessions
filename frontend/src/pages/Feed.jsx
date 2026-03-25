@@ -25,10 +25,13 @@ export function Feed() {
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
 
-    const fetchPosts = useCallback(async (skip = 0, append = false) => {
+    const fetchPosts = useCallback(async (cursorOrSkip = 0, append = false) => {
         try {
             const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : '';
-            const res = await api.get(`/posts/?skip=${skip}&limit=20${searchParam}`);
+            // If append is true, cursorOrSkip is treated as cursor (lastPost.id)
+            // If append is false, cursorOrSkip is treated as skip (0) for fresh load
+            const paginationParam = append ? `cursor=${cursorOrSkip}` : `skip=${cursorOrSkip}`;
+            const res = await api.get(`/posts/?${paginationParam}&limit=20${searchParam}`);
             if (res.data.length < 20) setHasMore(false);
             setPosts((prev) => append ? [...prev, ...res.data] : res.data);
         } catch (err) {
@@ -38,10 +41,36 @@ export function Feed() {
         }
     }, [searchQuery]);
 
-    // Use the shared hook to perform a fetch on mount. Depend on `searchQuery`
-    // (primitive) instead of the `fetchPosts` function reference to avoid
-    // re-running when unrelated parents re-render and re-create the callback.
+    // Use the shared hook to perform a fetch on mount.
     useFetchOnMount(() => {
+        if (!searchQuery) {
+            const cachedPosts = sessionStorage.getItem('feed_posts_cache');
+            const cachedPage = sessionStorage.getItem('feed_page_cache');
+            const cachedHasMore = sessionStorage.getItem('feed_has_more_cache');
+
+            if (cachedPosts && cachedPage) {
+                try {
+                    const parsedPosts = JSON.parse(cachedPosts);
+                    if (parsedPosts.length > 0) {
+                        setPosts(parsedPosts);
+                        setPage(parseInt(cachedPage, 10));
+                        setHasMore(cachedHasMore === 'true');
+                        setLoading(false);
+                        
+                        setTimeout(() => {
+                            const savedScroll = sessionStorage.getItem('feed_scroll_pos');
+                            if (savedScroll) {
+                                window.scrollTo(0, parseInt(savedScroll, 10));
+                            }
+                        }, 50);
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Feed cache read error", e);
+                }
+            }
+        }
+
         setPage(0);
         setHasMore(true);
         setLoading(true);
@@ -49,15 +78,35 @@ export function Feed() {
         fetchPosts(0, false);
     }, [searchQuery]);
 
+    // Continuously save scroll position back to cache when not searching
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!searchQuery && posts.length > 0) {
+                sessionStorage.setItem('feed_scroll_pos', window.scrollY.toString());
+            }
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [searchQuery, posts.length]);
+
+    // Save fetched posts to cache seamlessly
+    useEffect(() => {
+        if (!searchQuery && posts.length > 0) {
+            sessionStorage.setItem('feed_posts_cache', JSON.stringify(posts));
+            sessionStorage.setItem('feed_page_cache', page.toString());
+            sessionStorage.setItem('feed_has_more_cache', hasMore.toString());
+        }
+    }, [posts, page, hasMore, searchQuery]);
+
     const observerTarget = useRef(null);
 
     const handleLoadMore = useCallback(() => {
-        if (loading || !hasMore) return;
+        if (loading || !hasMore || posts.length === 0) return;
         setLoading(true);
-        const newPage = page + 1;
-        setPage(newPage);
-        fetchPosts(newPage * 20, true);
-    }, [loading, hasMore, page, fetchPosts]);
+        const lastPost = posts[posts.length - 1];
+        setPage(page + 1);
+        fetchPosts(lastPost.id, true);
+    }, [loading, hasMore, page, fetchPosts, posts]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -165,6 +214,7 @@ export function Feed() {
                             post={post}
                             index={index}
                             onDelete={(id) => setPosts(posts.filter(p => p.id !== id))}
+                            onUpdatePost={(id, updates) => setPosts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p))}
                         />
                     ))}
                 </div>

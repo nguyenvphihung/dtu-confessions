@@ -90,7 +90,7 @@ function ReelItem({ item, active, onLike, onShare, onWatch, onSwipeLeft, onNearE
     };
 
     return (
-        <section className="relative h-screen w-full snap-start bg-black" onDoubleClick={debouncedLike}>
+        <section className="relative h-[100dvh] w-full snap-start bg-black" onDoubleClick={debouncedLike}>
             <video
                 ref={videoRef}
                 src={item.file_url}
@@ -144,8 +144,10 @@ function ReelItem({ item, active, onLike, onShare, onWatch, onSwipeLeft, onNearE
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-                            className="absolute inset-x-0 bottom-0 max-h-[68vh] rounded-t-2xl bg-[#0F0F17] overflow-hidden"
+                            className="absolute inset-x-0 bottom-0 max-h-[68dvh] rounded-t-2xl bg-[#0F0F17] overflow-hidden flex flex-col pointer-events-auto"
                             onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
                         >
                             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
                                 <span className="text-sm font-semibold">Bình luận</span>
@@ -153,7 +155,7 @@ function ReelItem({ item, active, onLike, onShare, onWatch, onSwipeLeft, onNearE
                                     <X size={16} />
                                 </button>
                             </div>
-                            <div className="p-2 overflow-y-auto max-h-[calc(68vh-56px)]">
+                            <div className="p-2 flex-1 overflow-y-auto max-h-[calc(68dvh-56px)] pb-4 custom-scrollbar">
                                 <Suspense fallback={<div className="p-4 text-sm text-white/70">Đang tải bình luận...</div>}>
                                     <LazyCommentSection entityType="reel" entityId={item.media_id} isOpen onCountChange={setCommentCount} />
                                 </Suspense>
@@ -269,7 +271,7 @@ export default function Reels() {
     };
 
     return (
-        <div className="fixed inset-0 z-[80] bg-black text-white">
+        <div className="fixed inset-0 z-[100] bg-black text-white h-[100dvh] w-[100vw] overflow-hidden overscroll-none">
             <button onClick={() => navigate('/')} className="absolute z-10 top-3 left-3 w-10 h-10 rounded-full bg-black/40 flex items-center justify-center cursor-pointer">
                 <ChevronLeft />
             </button>
