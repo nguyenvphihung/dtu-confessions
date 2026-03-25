@@ -5,7 +5,7 @@ const ThemeContext = createContext();
 export function ThemeProvider({ children }) {
     const [isDark, setIsDark] = useState(() => {
         const saved = localStorage.getItem('theme');
-        return saved ? saved === 'dark' : true; // Mặc định dark mode
+        return saved ? saved === 'dark' : false; // Mặc định light mode
     });
 
     useEffect(() => {
